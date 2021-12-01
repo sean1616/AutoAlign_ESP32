@@ -1,0 +1,169 @@
+{
+	"files": [
+		{
+			"path": "AutoAlign/AutoAlign.ino",
+			"bookmarks": [
+				{
+					"line": 0,
+					"column": 11,
+					"label": ""
+				},
+				{
+					"line": 188,
+					"column": 14,
+					"label": ""
+				},
+				{
+					"line": 224,
+					"column": 8,
+					"label": "step"
+				},
+				{
+					"line": 327,
+					"column": 13,
+					"label": "KeyValueConverter"
+				},
+				{
+					"line": 440,
+					"column": 12,
+					"label": "ILConverter"
+				},
+				{
+					"line": 453,
+					"column": 17,
+					"label": "Cal_PD_Input_Dac"
+				},
+				{
+					"line": 481,
+					"column": 13,
+					"label": "Cal_PD_Input_IL"
+				},
+				{
+					"line": 574,
+					"column": 20,
+					"label": "WriteInfoEEPROM"
+				},
+				{
+					"line": 595,
+					"column": 13,
+					"label": ""
+				},
+				{
+					"line": 614,
+					"column": 18,
+					"label": "EmergencyStop"
+				},
+				{
+					"line": 639,
+					"column": 8,
+					"label": ""
+				},
+				{
+					"line": 770,
+					"column": 12,
+					"label": ""
+				},
+				{
+					"line": 806,
+					"column": 19,
+					"label": ""
+				},
+				{
+					"line": 844,
+					"column": 5,
+					"label": ""
+				},
+				{
+					"line": 951,
+					"column": 8,
+					"label": ""
+				},
+				{
+					"line": 990,
+					"column": 11,
+					"label": ""
+				},
+				{
+					"line": 1021,
+					"column": 8,
+					"label": ""
+				},
+				{
+					"line": 1061,
+					"column": 8,
+					"label": ""
+				},
+				{
+					"line": 1117,
+					"column": 18,
+					"label": ""
+				},
+				{
+					"line": 1177,
+					"column": 18,
+					"label": ""
+				},
+				{
+					"line": 1259,
+					"column": 14,
+					"label": ""
+				},
+				{
+					"line": 1317,
+					"column": 15,
+					"label": ""
+				},
+				{
+					"line": 1337,
+					"column": 14,
+					"label": ""
+				},
+				{
+					"line": 1376,
+					"column": 16,
+					"label": ""
+				},
+				{
+					"line": 1546,
+					"column": 14,
+					"label": ""
+				},
+				{
+					"line": 1557,
+					"column": 24,
+					"label": "/* Auto Align */"
+				},
+				{
+					"line": 1583,
+					"column": 26,
+					"label": "/* Fine Scan */"
+				},
+				{
+					"line": 1622,
+					"column": 22,
+					"label": ""
+				},
+				{
+					"line": 2482,
+					"column": 13,
+					"label": ""
+				},
+				{
+					"line": 3053,
+					"column": 9,
+					"label": ""
+				},
+				{
+					"line": 3876,
+					"column": 19,
+					"label": ""
+				},
+				{
+					"line": 4276,
+					"column": 11,
+					"label": ""
+				}
+			]
+		}
+	]
+}
