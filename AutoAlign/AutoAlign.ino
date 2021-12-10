@@ -2,7 +2,7 @@
 // #include <avr/wdt.h> //使用看門狗計時器的含括檔
 // #include <esp_task_wdt.h>
 // #include <FLASHLED.h>
-#include <ArduinoSort.h>
+// #include <ArduinoSort.h>
 #include <curveFitting.h>
 // #include <U8glib.h>
 #include <U8g2lib.h>
@@ -2328,7 +2328,9 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       PD_Now = Cal_PD_Input_IL(Get_PD_Points);
       msg = Region + ", X Scan, Rount " + String(1) + ", Trip ";
 
-      Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan, Trip ");
+      K_OK = Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan, Trip ");
+      if (!K_OK)
+        Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan, Trip ");
 
       CMDOutput("%:");
 
@@ -2340,7 +2342,9 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
       msg = Region + ", Y Scan, Rount " + String(1) + ", Trip ";
 
-      Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 500, 2, "Y Scan, Trip "); //steps:350
+      K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 500, 2, "Y Scan, Trip "); //steps:350
+      if (!K_OK)
+        K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 500, 2, "Y Scan, Trip ");
 
       CMDOutput("%:");
 
@@ -2352,7 +2356,9 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
       msg = Region + ", Z Scan, Rount " + String(1) + ", Trip ";
 
-      Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 500, 2, "Z Scan, Trip ");
+      K_OK = Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 500, 2, "Z Scan, Trip ");
+      if (!K_OK)
+        K_OK = Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 500, 2, "Z Scan, Trip ");
 
       CMDOutput("%:");
       break;
@@ -4125,52 +4131,13 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
       break;
     }
+    else if (deltaPos == 0)
+    {
+      return false;
+    }
     else
       break;
   }
-
-  // int descent_count = 0;
-  // double pdV = Cal_PD_Input_IL(Get_PD_Points);
-  // if (PD_Now < PD_Best - 1.5)
-  // {
-  //   Serial.println("Incorrect Position, IL is: " + String(PD_Now));
-  //   for (int s = 0; s < 8; s++)
-  //   {
-  //     step(STP_Pin, motorStep, delayBetweenStep);
-  //     delay(stableDelay);
-
-  //     pdV = Cal_PD_Input_IL(Get_PD_Points);
-  //     if (abs(-PD_Now) <= 1 && s != 0)
-  //     {
-  //       Serial.println("Break A");
-  //       break;
-  //     }
-
-  //     if (pdV < PD_Now - 2)
-  //     {
-  //       Serial.println("Break B");
-  //       break;
-  //     }
-
-  //     if (pdV < PD_Now)
-  //       descent_count++;
-
-  //     PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-  //     DataOutput(XYZ, PD_Now); //int xyz, double pdValue
-
-  //     if (abs(PD_Best - PD_Now) < 1.2)
-  //     {
-  //       Serial.println("Break C");
-  //       break;
-  //     }
-
-  //     if (descent_count >= 3)
-  //     {
-  //       Serial.println("Break D");
-  //       break;
-  //     }
-  //   }
-  // }
 
   PD_Now = Cal_PD_Input_IL(Get_PD_Points);
   Serial.println("Best IL: " + String(PD_Best));
