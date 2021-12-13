@@ -1680,21 +1680,21 @@ void loop()
             if (true)
             {
               //IL Stable Time ,  70 secs,  curing time threshold , 12.5 mins
-              if (time_curing_2 - time_curing_1 > 70000 && Q_Time >= 10) // 800
+              if (time_curing_2 - time_curing_1 > 70000 && Q_Time >= 800) // 800
               {
                 Serial.println("IL Stable - Stop Auto Curing");
                 isStop = true;
                 break;
               }
               //Total curing time , 14 mins, 840s
-              else if (Q_Time > 15)
+              else if (Q_Time > 840)
               {
                 Serial.println("Over Limit Curing Time - Stop Auto Curing");
                 isStop = true;
                 break;
               }
 
-              if (isILStable && (Q_Time) >= 10) //800
+              if (isILStable && (Q_Time) >= 800) //800
               {
                 Serial.println("IL Stable in Scan - Stop Auto Curing");
                 break;
@@ -1730,7 +1730,7 @@ void loop()
                 }
                 else if ((Q_Time) > 600 && (Q_Time) <= 720)
                 {
-                  Z_ScanSTP = 90; //45
+                  Z_ScanSTP = 60; //45
                   Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
                 }
                 else if ((Q_Time) > 720)
