@@ -1747,10 +1747,10 @@ void loop()
                 Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
               }
 
-              if (Q_Time > 20)
+              if (Q_Time > 540)
               {
-                Serial.println("Update Scan Condition");
                 Acceptable_Delta_IL = 0.25; // Target IL changed
+                Serial.println("Update Scan Condition: " + String(Acceptable_Delta_IL));
               }
             }
 
