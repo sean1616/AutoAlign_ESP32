@@ -1610,11 +1610,15 @@ void loop()
           if (isStop)
             true;
 
+          Serial.println("Auto-Align Start");
+
           Scan_AllRange_TwoWay(1, 7, 20, 0, 0, 120, StopValue, 500, 2, "Y Scan, Trip "); //steps:350
           CMDOutput("%:");
 
           if (isStop)
             true;
+
+          Serial.println("Auto-Align Start");
 
           Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan, Trip "); //steps:350
           CMDOutput("%:");
@@ -1789,8 +1793,9 @@ void loop()
                   break;
 
                 PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+                Serial.println("Q_State: " + String(Q_State));
 
-                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL) || Q_State != 1)
+                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL) || Q_State == 1)
                 {
                   Fine_Scan(2, false); //Q Scan Y
 
@@ -1805,7 +1810,7 @@ void loop()
 
                 PD_Before = Cal_PD_Input_IL(Get_PD_Points);
 
-                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL) || Q_State != 1)
+                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
                 {
                   //Q Scan Z
                   Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 70, 0, 120, StopValue, 500, 2, "Z Scan, Trip ");
@@ -1817,6 +1822,7 @@ void loop()
               }
 
               PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+              Serial.println("Q_State: " + String(Q_State));
 
               if (abs(PD_Before - PD_Now) < 0.3 && (time_curing_3 - time_curing_0) > 750000)
               {
