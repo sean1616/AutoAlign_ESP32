@@ -2,7 +2,7 @@
 // #include <avr/wdt.h> //使用看門狗計時器的含括檔
 // #include <esp_task_wdt.h>
 // #include <FLASHLED.h>
-#include <ArduinoSort.h>
+// #include <ArduinoSort.h>
 #include <curveFitting.h>
 // #include <U8glib.h>
 #include <U8g2lib.h>
