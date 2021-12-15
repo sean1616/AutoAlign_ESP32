@@ -119,6 +119,7 @@ int cmd_No = 0;
 
 bool isStop = false, isGetPower = true, isILStable = false;
 bool sprial_JumpToBest = true;
+int Q_State = 0;
 unsigned long Q_Time = 0;
 byte GetPower_Mode = 1;
 
@@ -599,7 +600,7 @@ void updateUI(int pageIndex)
 {
   if (isLCD)
   {
-    Serial.println("LCD Update: " + String(pageIndex) + ", Mode: " + String(LCD_Update_Mode));
+    // Serial.println("LCD Update: " + String(pageIndex) + ", Mode: " + String(LCD_Update_Mode));
 
     if (LCD_Update_Mode == 0 && pageIndex != LCD_PageNow)
     {
@@ -802,7 +803,7 @@ void updateUI(int pageIndex)
       lcd.sendBuffer();
     }
 
-    Serial.println("PageNow:" + String(LCD_PageNow));
+    // Serial.println("PageNow:" + String(LCD_PageNow));
 
     isLCD = false;
   }
@@ -1609,11 +1610,15 @@ void loop()
           if (isStop)
             true;
 
+          Serial.println("Auto-Align Start");
+
           Scan_AllRange_TwoWay(1, 7, 20, 0, 0, 120, StopValue, 500, 2, "Y Scan, Trip "); //steps:350
           CMDOutput("%:");
 
           if (isStop)
             true;
+
+          Serial.println("Auto-Align Start");
 
           Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan, Trip "); //steps:350
           CMDOutput("%:");
@@ -1654,17 +1659,19 @@ void loop()
           AutoCuring_Best_IL = Cal_PD_Input_IL(Get_PD_Points);
 
           StopValue = AutoCuring_Best_IL; //0 dB
-          PD_Now = Cal_PD_Input_IL(Get_PD_Points);
 
           Z_ScanSTP = 125; //180
 
           Serial.println("Auto-Curing");
+          CMDOutput("ACS"); // Auto_Curing Start
 
           while (true)
           {
+            PD_Now = Cal_PD_Input_IL(Get_PD_Points);
             Q_Time = ((millis() - time_curing_0) / 1000);
             Serial.println("Curing Time:" + String(Q_Time) + " s");
-            Serial.println("Stop Value: " + String(StopValue) + ", Now: " + String(PD_Now));
+            Serial.println("Threshold: " + String(AutoCuring_Best_IL - Acceptable_Delta_IL) + ", Now: " + String(PD_Now));
+            Serial.println("PD Power:" + String(PD_Now)); //dB
 
             digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
             delay(5);
@@ -1675,6 +1682,27 @@ void loop()
 
             if (isStop)
               break;
+
+            //Q State
+            if (true)
+            {
+              if (Q_Time <= 540)
+              {
+                Q_State = 1;
+              }
+              else if (Q_Time > 540 && Q_Time <= 600)
+              {
+                Q_State = 2;
+              }
+              else if (Q_Time > 600 && Q_Time <= 700)
+              {
+                Q_State = 3;
+              }
+              else if (Q_Time > 700)
+              {
+                Q_State = 4;
+              }
+            }
 
             //Q Stop Conditions
             if (true)
@@ -1704,6 +1732,32 @@ void loop()
             if (isStop)
               break;
 
+            //Q scan conditions
+            if (true)
+            {
+              if (Q_State == 2)
+              {
+                Z_ScanSTP = 125; //60
+                Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
+              }
+              else if (Q_State == 3)
+              {
+                Z_ScanSTP = 70; //45
+                Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
+              }
+              else if (Q_State == 4)
+              {
+                Z_backlash = 50; //45
+                Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
+              }
+
+              if (Q_Time > 540)
+              {
+                Acceptable_Delta_IL = 0.25; // Target IL changed
+                Serial.println("Update Scan Condition: " + String(Acceptable_Delta_IL));
+              }
+            }
+
             PD_Now = Cal_PD_Input_IL(Get_PD_Points);
 
             if (PD_Now >= (AutoCuring_Best_IL - (Acceptable_Delta_IL + 0.15)))
@@ -1720,31 +1774,6 @@ void loop()
               Q_Time = (time_curing_3 - time_curing_0) / 1000;
               Serial.println("Auto-Curing Time: " + String(Q_Time) + " s");
 
-              //Q scan conditions
-              if (true)
-              {
-                if ((Q_Time) > 540 && (Q_Time) <= 600)
-                {
-                  Z_ScanSTP = 125; //60
-                  Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
-                }
-                else if ((Q_Time) > 600 && (Q_Time) <= 720)
-                {
-                  Z_ScanSTP = 60; //45
-                  Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
-                }
-                else if ((Q_Time) > 720)
-                {
-                  Z_backlash = 50; //45
-                  Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
-                }
-
-                if (Q_Time > 540)
-                {
-                  Acceptable_Delta_IL = 0.25; // Target IL changed
-                }
-              }
-
               //Q Scan
               if (true)
               {
@@ -1754,6 +1783,8 @@ void loop()
                 {
                   Fine_Scan(1, false); //Q Scan X
 
+                  Serial.println("X PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
+
                   if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
                     Fine_Scan(1, false); //Q Scan X
                 }
@@ -1762,10 +1793,13 @@ void loop()
                   break;
 
                 PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+                Serial.println("Q_State: " + String(Q_State));
 
-                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
+                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL) || Q_State == 1)
                 {
                   Fine_Scan(2, false); //Q Scan Y
+
+                  Serial.println("Y PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
 
                   if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
                     Fine_Scan(2, false); //Q Scan Y
@@ -1779,7 +1813,7 @@ void loop()
                 if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
                 {
                   //Q Scan Z
-                  Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 0, 0, 100, StopValue, 500, 2, "Z Scan, Trip ");
+                  Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 70, 0, 120, StopValue, 500, 2, "Z Scan, Trip ");
                   CMDOutput("%:");
                 }
 
@@ -1788,6 +1822,7 @@ void loop()
               }
 
               PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+              Serial.println("Q_State: " + String(Q_State));
 
               if (abs(PD_Before - PD_Now) < 0.3 && (time_curing_3 - time_curing_0) > 750000)
               {
@@ -1814,6 +1849,8 @@ void loop()
           String eepromString = ReadInfoEEPROM(40, 8);                              //Reading z backlash from EEPROM
           Serial.println("Reset Z backlash from EEPROM: " + ReadInfoEEPROM(40, 8)); //(start_position, data_length)
           Z_backlash = eepromString.toInt();
+
+          // CMDOutput("ACE"); // Auto_Curing End
 
           isLCD = true;
           LCD_Update_Mode = 100;
