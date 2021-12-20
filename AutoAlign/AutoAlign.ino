@@ -44,7 +44,6 @@ const byte C_1 = 25;
 const byte C_2 = 33;
 const byte C_3 = 32;
 
-// const byte LED_Align = 53;
 const byte PD_Pin = 34;
 int Tablet_PD_mode_Trigger_Pin = 13;
 
@@ -91,6 +90,43 @@ int X_ScanStable = 25;
 int Y_ScanStable = 50;
 int Z_ScanStable = 80;
 
+//Intention _ Region _ MotionType _ ParaType _ Axis _ Rank = Value
+int AA_SpiralRough_Feed_Steps_Z_A = 15000;
+int AA_SpiralRough_Spiral_Steps_XY_A = 2000;
+int AA_SpiralFine_Spiral_Steps_XY_A = 1500;
+int AA_SpiralFine_Scan_Steps_X_A = 25;
+int AA_SpiralFine_Scan_Steps_X_B = 30;
+int AA_SpiralFine_Scan_Steps_X_C = 40;
+int AA_SpiralFine_Scan_Steps_X_D = 50;
+int AA_SpiralFine_Scan_Steps_Y_A = 30;
+int AA_SpiralFine_Scan_Steps_Y_B = 40;
+int AA_SpiralFine_Scan_Steps_Y_C = 60;
+int AA_SpiralFine_Scan_Steps_Y_D = 80;
+int AA_SpiralFine_Scan_Steps_Y_E = 140;
+int AA_ScanRough_Feed_Steps_Z_A = 10000;
+int AA_ScanRough_Feed_Steps_Z_B = 1000;
+double AA_ScanRough_Feed_Ratio_Z_A = 3.2;
+double AA_ScanRough_Feed_Ratio_Z_B = 2.9;
+double AA_ScanRough_Feed_Ratio_Z_C = 2.5;
+double AA_ScanRough_Feed_Ratio_Z_D = 1.8;
+int AA_ScanRough_Scan_Steps_Y_A = 25;
+int AA_ScanRough_Scan_Steps_Y_B = 30;
+int AA_ScanRough_Scan_Steps_Y_C = 40;
+int AA_ScanRough_Scan_Steps_Y_D = 70;
+int AA_ScanRough_Scan_Steps_X_A = 25;
+int AA_ScanRough_Scan_Steps_X_B = 30;
+int AA_ScanRough_Scan_Steps_X_C = 80;
+int AA_ScanRough_Scan_Steps_X_D = 100;
+int AA_ScanRough_Scan_Steps_X_E = 120;
+int AA_ScanFine_Scan_Steps_Z_A = 200;
+int AA_ScanFine_Scan_Steps_Y_A = 20;
+int AA_ScanFine_Scan_Steps_X_A = 20;
+int AA_ScanFinal_Scan_Steps_Z_A = 125;
+int AA_ScanFinal_Scan_Steps_Y_A = 20;
+int AA_ScanFinal_Scan_Steps_X_A = 20;
+
+int AA_ScanFinal_Scan_Delay_X_A = 0;
+
 double averagePDInput = 0;
 
 double ref_Dac = 0; //PD reference
@@ -104,18 +140,15 @@ unsigned long timer_Get_IL_1 = 0, timer_Get_IL_2;
 
 bool btn_isTrigger = false;
 int Threshold;
-int stableDelay;
+int stableDelay = 0;
 bool key_ctrl = false;
 
 double Motor_Unit_Idx = 0.01953125; /* (1/51.2) um/pulse */
 
-// int Get_PD_Points = 15;
 int Get_PD_Points = 500;
 double Target_IL = 0; //0 dB
 double StopValue = 0; //0 dB
 int cmd_No = 0;
-
-//int LED_Twinkling = 0;
 
 bool isStop = false, isGetPower = true, isILStable = false;
 bool sprial_JumpToBest = true;
@@ -888,8 +921,9 @@ void setup()
   Serial.begin(115200);
   Serial.setTimeout(20); //設定序列埠接收資料時的最大等待時間
 
-  // BT.begin("AL02"); //BLE ID
+  // BT.begin("AutoAlign_02"); //BLE ID
   // BT.setTimeout(20);
+
   // u8g2_font_5x7_tf
   lcd.begin();
 
@@ -998,1211 +1032,16 @@ void loop()
 
   String cmd = rsMsg;
 
-  //Function Classification
-  if (cmd != "" && ButtonSelected < 0)
-  {
-    cmd.trim();
-    Serial.println("get cmd: " + String(cmd));
+  cmd_No = Function_Classification(cmd, ButtonSelected);
 
-    if (cmd == "Xp1")
-    {
-      cmd_No = 102;
-    }
-    else if (cmd == "Xm1")
-    {
-      cmd_No = 105;
-    }
-    else if (cmd == "Yp1")
-    {
-      cmd_No = 106;
-    }
-    else if (cmd == "Ym1")
-    {
-      cmd_No = 104;
-    }
-    else if (cmd == "Zp1")
-    {
-      cmd_No = 103;
-    }
-    else if (cmd == "Zm1")
-    {
-      cmd_No = 101;
-    }
+  // BLE_Function(cmd);
 
-    //Jog
-    else if (Contains(cmd, "Jog_"))
-    {
-      cmd.remove(0, 4);
-
-      byte dirPin, stpPin;
-      bool dirt;
-
-      if (Contains(cmd, "X"))
-      {
-        dirPin = X_DIR_Pin;
-        stpPin = X_STP_Pin;
-      }
-      else if (Contains(cmd, "Y"))
-      {
-        dirPin = Y_DIR_Pin;
-        stpPin = Y_STP_Pin;
-      }
-      else if (Contains(cmd, "Z"))
-      {
-        dirPin = Z_DIR_Pin;
-        stpPin = Z_STP_Pin;
-      }
-
-      cmd.remove(0, 1);
-
-      if (Contains(cmd, "m"))
-      {
-        dirt = false;
-      }
-      else if (Contains(cmd, "p"))
-      {
-        dirt = true;
-      }
-
-      cmd.remove(0, 2);
-
-      Move_Motor(dirPin, stpPin, dirt, cmd.toDouble(), 80, 100); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
-    }
-
-    //Abs
-    else if (Contains(cmd, "Abs_"))
-    {
-      cmd.remove(0, 4);
-
-      byte dirPin, stpPin, xyz;
-      bool dirt;
-
-      if (Contains(cmd, "X"))
-      {
-        dirPin = X_DIR_Pin;
-        stpPin = X_STP_Pin;
-        xyz = 0;
-      }
-      else if (Contains(cmd, "Y"))
-      {
-        dirPin = Y_DIR_Pin;
-        stpPin = Y_STP_Pin;
-        xyz = 1;
-      }
-      else if (Contains(cmd, "Z"))
-      {
-        dirPin = Z_DIR_Pin;
-        stpPin = Z_STP_Pin;
-        xyz = 2;
-      }
-
-      cmd.remove(0, 2);
-
-      Move_Motor_abs(xyz, cmd.toDouble());
-    }
-
-    //Abs All
-    else if (Contains(cmd, "Abs_All_"))
-    {
-      Serial.println("Abs all");
-      cmd.remove(0, 8);
-
-      int travel_x = 0, travel_y = 0, travel_z = 0;
-
-      travel_x = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //xyz
-
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      travel_y = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //xyz
-
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      travel_z = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //xyz
-
-      Move_Motor_abs_all(travel_x, travel_y, travel_z);
-    }
-
-    //(CScan) Scan Twoway Command
-    else if (Contains(cmd, "CScan_"))
-    {
-      cmd.remove(0, 6);
-      Serial.println(cmd);
-
-      int XYZ;
-      int count;
-      int motorStep;
-      int stableDelay;
-      bool Direction;
-      int StopPDValue;
-      int Get_PD_Points;
-      int Trips;
-
-      XYZ = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //xyz
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      count = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //count
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      motorStep = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //step
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      stableDelay = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //stable delay
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      Direction = cmd.substring(0, cmd.indexOf('_')) == "1";
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //direction
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      StopPDValue = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //stopValue
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      Get_PD_Points = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //average points
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      Trips = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd); //trips
-
-      int delayBetweenStep = 50;
-      String msg = "Trip ";
-
-      CMDOutput("AS");
-      Serial.println("Auto-Align Start");
-
-      Scan_AllRange_TwoWay(XYZ, count, motorStep, stableDelay,
-                           Direction, delayBetweenStep, StopPDValue, Get_PD_Points, Trips, msg);
-
-      CMDOutput("%:");
-
-      Serial.println("Auto Align End");
-    }
-
-    //(SScan) Spiral Scan Command
-    else if (Contains(cmd, "SScan_"))
-    {
-      cmd.remove(0, 6);
-      Serial.println(cmd);
-
-      int matrix;
-      int motorStep;
-      int stb;
-      int delay_btw_steps;
-      int StopPDValue;
-      int Z_Layers;
-      int Z_Steps;
-
-      matrix = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //matrix
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      motorStep = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //step
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      stb = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //stable delay
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      //          delay_btw_steps = cmd.substring(0, cmd.indexOf('_')) == "1";
-      delay_btw_steps = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //delay_btw_steps
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      StopPDValue = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //stopValue
-      cmd.remove(0, cmd.indexOf('_') + 1);
-      //          Serial.println(cmd);  //stopValue
-
-      Z_Layers = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //Z_Layers
-      cmd.remove(0, cmd.indexOf('_') + 1);
-
-      Z_Steps = cmd.substring(0, cmd.indexOf('_')).toInt();
-      Serial.println(cmd); //Z_Steps
-
-      digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
-      delay(5);
-
-      M_Level = matrix;
-
-      CMDOutput("AS");
-      Serial.println("Auto-Align Start");
-      CMDOutput("^X");
-      CMDOutput("R:" + String(M_Level * 2 + 1));
-      CMDOutput("C:" + String(M_Level * 2 + 1));
-      // Serial.println("Rows=" + String(M_Level * 2 + 1));
-      // Serial.println("Columns=" + String(M_Level * 2 + 1));
-      // Serial.println("^X");
-
-      MinMotroStep = motorStep; //350
-      stableDelay = stb;
-      delayBetweenStep = delay_btw_steps;
-
-      if (Z_Layers > 1)
-        sprial_JumpToBest = false;
-
-      for (int ZL = 0; ZL < Z_Layers; ZL++)
-      {
-        if (ZL > 0)
-        {
-          Move_Motor(Z_DIR_Pin, Z_STP_Pin, false, Z_Steps, 8, 150); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
-        }
-
-        AutoAlign_Spiral(M_Level, StopPDValue, stableDelay); //Input : (Sprial Level, Threshold, stable) Threshold:128
-      }
-
-      sprial_JumpToBest = true;
-
-      CMDOutput("X^");
-      // Serial.println("X^");
-
-      digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
-    }
-
-    //Set BackLash Command
-    else if (Contains(cmd, "_BL:"))
-    {
-      if (Contains(cmd, "X"))
-      {
-        cmd.remove(0, 5);
-
-        X_backlash = cmd.toInt();
-
-        CleanEEPROM(24, 8); //Clean EEPROM(int startPosition, int datalength)
-
-        WriteInfoEEPROM(String(cmd), 24); //(data, start_position)  // Write Data to EEPROM
-
-        Serial.println("Set X BackLash: " + String(String(cmd)));
-
-        // Reading Data from EEPROM
-        Serial.println("X BackLash in eeprom: " + ReadInfoEEPROM(24, 8)); //(start_position, data_length)
-
-        X_backlash = ReadInfoEEPROM(24, 8).toInt();
-      }
-
-      else if (Contains(cmd, "Y"))
-      {
-        cmd.remove(0, 5);
-
-        Y_backlash = cmd.toInt();
-
-        CleanEEPROM(32, 8); //Clean EEPROM(int startPosition, int datalength)
-
-        WriteInfoEEPROM(String(cmd), 32); //(data, start_position)  // Write Data to EEPROM
-
-        Serial.println("Set Y BackLash: " + String(String(cmd)));
-
-        // Reading Data from EEPROM
-        Serial.println("Y BackLash in eeprom: " + ReadInfoEEPROM(32, 8)); //(start_position, data_length)
-
-        Y_backlash = ReadInfoEEPROM(32, 8).toInt();
-      }
-
-      else if (Contains(cmd, "Z"))
-      {
-        cmd.remove(0, 5);
-
-        Z_backlash = cmd.toInt();
-
-        CleanEEPROM(40, 8); //Clean EEPROM(int startPosition, int datalength)
-
-        WriteInfoEEPROM(String(cmd), 40); //(data, start_position)  // Write Data to EEPROM
-
-        Serial.println("Set Z BackLash: " + String(String(cmd)));
-
-        // Reading Data from EEPROM
-        Serial.println("Z BackLash in eeprom: " + ReadInfoEEPROM(40, 8)); //(start_position, data_length)
-
-        Z_backlash = ReadInfoEEPROM(40, 8).toInt();
-      }
-    }
-
-    //eStep Command
-    else if (Contains(cmd, "_eStep:"))
-    {
-      if (Contains(cmd, "X"))
-      {
-        cmd.remove(0, 8);
-        X_rotator_steps = cmd.toInt();
-      }
-      else if (Contains(cmd, "Y"))
-      {
-        cmd.remove(0, 8);
-        Y_rotator_steps = cmd.toInt();
-      }
-      else if (Contains(cmd, "Z"))
-      {
-        cmd.remove(0, 8);
-        Z_rotator_steps = cmd.toInt();
-      }
-    }
-
-    //Set Scan Steps Command
-    else if (Contains(cmd, "_ScanSTP:"))
-    {
-      if (Contains(cmd, "X"))
-      {
-        cmd.remove(0, 10);
-
-        X_ScanSTP = cmd.toInt();
-
-        CleanEEPROM(48, 8);                                         //Clean EEPROM(int startPosition, int datalength)
-        WriteInfoEEPROM(String(cmd), 48);                           //(data, start_position)  // Write Data to EEPROM
-        Serial.println("Save in eeprom: " + ReadInfoEEPROM(48, 8)); //(start_position, data_length)
-
-        Serial.println("Set X Scan Step: " + String(X_ScanSTP));
-      }
-      else if (Contains(cmd, "Y"))
-      {
-        cmd.remove(0, 10);
-        Y_ScanSTP = cmd.toInt();
-
-        CleanEEPROM(56, 8);                                         //Clean EEPROM(int startPosition, int datalength)
-        WriteInfoEEPROM(String(cmd), 56);                           //(data, start_position)  // Write Data to EEPROM
-        Serial.println("Save in eeprom: " + ReadInfoEEPROM(56, 8)); //(start_position, data_length)
-
-        Serial.println("Set Y Scan Step: " + String(String(cmd)));
-      }
-      else if (Contains(cmd, "Z"))
-      {
-        cmd.remove(0, 10);
-        Z_ScanSTP = cmd.toInt();
-
-        CleanEEPROM(64, 8);                                         //Clean EEPROM(int startPosition, int datalength)
-        WriteInfoEEPROM(String(cmd), 64);                           //(data, start_position)  // Write Data to EEPROM
-        Serial.println("Save in eeprom: " + ReadInfoEEPROM(64, 8)); //(start_position, data_length)
-
-        Serial.println("Set Z Scan Step: " + String(String(cmd)));
-      }
-    }
-
-    //Set Ref Command
-    else if (Contains(cmd, "Set_Ref:"))
-    {
-      cmd.remove(0, 8);
-
-      CleanEEPROM(0, 8);               //Clean EEPROM(int startPosition, int datalength)
-      WriteInfoEEPROM(String(cmd), 0); //(data, start_position)  // Write Data to EEPROM
-      EEPROM.commit();
-
-      Serial.println("Update Ref Value : " + String(cmd));
-
-      String eepromString = ReadInfoEEPROM(0, 8); //(int start_position, int data_length)
-
-      Serial.println("PD ref: " + eepromString); //(start_position, data_length)  // Reading Data from EEPROM
-
-      ref_Dac = eepromString.toDouble();
-      ref_IL = ILConverter(ref_Dac);
-    }
-
-    //Set Manual Control Motor Speed
-    else if (Contains(cmd, "Set_Motor_Speed_"))
-    {
-      cmd.remove(0, 16);
-
-      if (Contains(cmd, "X"))
-      {
-        cmd.remove(0, 2);
-        delayBetweenStep_X = cmd.toInt();
-      }
-      else if (Contains(cmd, "Y"))
-      {
-        cmd.remove(0, 2);
-        delayBetweenStep_Y = cmd.toInt();
-      }
-      else if (Contains(cmd, "Z"))
-      {
-        cmd.remove(0, 2);
-        delayBetweenStep_Z = cmd.toInt();
-      }
-
-      Serial.println("Set Manual Control Motor Speed:" + cmd);
-    }
-
-    //Set PD average points
-    else if (Contains(cmd, "Set_PD_average_Points:"))
-    {
-      cmd.remove(0, 22);
-      Get_PD_Points = cmd.toInt();
-
-      Serial.println("Set PD avg points:" + String(Get_PD_Points));
-    }
-
-    //Command No.
-    else if (Contains(cmd, "cmd"))
-    {
-      cmd.remove(0, 3);
-      cmd_No = cmd.toInt();
-      delay(10);
-
-      //          cmd_No = 4;  //Auto-Align
-      //          cmd_No = 5;   //Fine scan
-      //          cmd_No = 6;   //Auto curing
-      //          cmd_No = 7;  //To re-load position
-      //          cmd_No = 8;  //To Home
-      //          cmd_No = 9;  //To Home
-      //          cmd_No = 10;  //To Home
-      //          cmd_No = 16;  //Set reLoad
-      //          cmd_No = 17;  //Set home
-      //          cmd_No = 18;  //Set Z target
-      //          cmd_No = 19;  //Get ref
-      //          cmd_No = 20;  //Spiral
-      //          cmd_No = 21;  //Keep print IL to PC
-      //          cmd_No = 22;  //Scan X
-      //          cmd_No = 23;  //Scan Y
-      //          cmd_No = 24;  //Scan Z
-    }
-  }
-  else if (ButtonSelected >= 0)
-  {
-    //Keyboard No. to Cmd Set No.
-    switch (ButtonSelected)
-    {
-    case 7:
-      cmd_No = 1;
-      break;
-
-    case 8:
-      cmd_No = 2;
-      break;
-
-    case 9:
-      cmd_No = 3;
-      break;
-
-    default:
-      cmd_No = ButtonSelected;
-      break;
-    }
-    // cmd_No = ButtonSelected;
-  }
-
-  //Bluetooth : Receive Data
-  // if (cmd == "" && cmd_No == 0)
-  // {
-  //   // Serial.println("BLE mode");
-  //   if (BT.connected(50))
-  //   {
-  //     isMsgShow = true;
-
-  //     if (BT.available())
-  //     {
-  //       String BTdata = BT.readString();
-  //       BT.println(BTdata);
-  //       Serial.println(BTdata);
-
-  //       if (BTdata == "Up")
-  //       {
-  //         MotorSTP_Pin = X_STP_Pin;
-
-  //         delayBetweenStep = 9;
-  //         MinMotroStep = 1000;
-
-  //         if (MotorDir_Pin != X_DIR_Pin || MotorCC_X == true || MotorCC == true)
-  //         {
-  //           MotorCC = false;
-  //           MotorCC_X = false;
-  //           MotorDir_Pin = X_DIR_Pin;
-  //           digitalWrite(MotorDir_Pin, MotorCC); //步進馬達方向控制, false為負方向
-  //           delay(10);
-  //         }
-
-  //         step(MotorSTP_Pin, MinMotroStep, delayBetweenStep);
-  //       }
-  //       else if (BTdata == "Down")
-  //       {
-  //         MotorSTP_Pin = X_STP_Pin;
-
-  //         delayBetweenStep = 9;
-  //         MinMotroStep = 1000;
-
-  //         if (MotorDir_Pin != X_DIR_Pin || MotorCC_X == false || MotorCC == false)
-  //         {
-  //           MotorCC = true;
-  //           MotorCC_X = true;
-  //           MotorDir_Pin = X_DIR_Pin;
-  //           digitalWrite(MotorDir_Pin, MotorCC); //步進馬達方向控制, false為負方向
-  //           delay(10);
-  //         }
-
-  //         step(MotorSTP_Pin, MinMotroStep, delayBetweenStep);
-  //       }
-  //     }
-  //   }
-  //   else
-  //   {
-  //     if (isMsgShow)
-  //     {
-  //       Serial.println("Disconnected");
-  //       isMsgShow = false;
-  //       // ESP.restart();
-  //     }
-  //   }
-  // }
-
-  // if(ButtonSelected <0 && cmd =="")
-  // {
-  //   cmd_No = 0;
-  // }
-  // Serial.println("Btn:" +String(ButtonSelected) + ", CMD:" + String(cmd_No));
-
-  //Function Execution
-  if (cmd_No != 0)
-  {
-    // Serial.println("Btn:" + String(ButtonSelected) + ", CMD:" + String(cmd_No));
-
-    //Functions: Alignment
-    if (cmd_No <= 100)
-    {
-      switch (cmd_No)
-      {
-        //Functions: Auto Align
-      case 1:
-        if (true)
-        {
-          // StopValue = -1.2; //-1.25 dB
-
-          digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
-          // digitalWrite(LED_Align, true);
-          delay(3);
-
-          AutoAlign();
-
-          // digitalWrite(LED_Align, false);
-          digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
-          Serial.println("Auto Align End");
-          MotorCC = true;
-
-          StopValue = 0; //0 dB
-
-          isLCD = true;
-          LCD_Update_Mode = 0;
-          LCD_PageNow = 100;
-        }
-        cmd_No = 0;
-        break;
-
-        //Functions: Fine Scan
-      case 2:
-        if (!btn_isTrigger)
-        {
-          StopValue = 0; //0 dB
-
-          isLCD = true;
-          LCD_Update_Mode = 1;
-
-          digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
-
-          CMDOutput("AS");
-          Serial.println("Auto-Align Start");
-
-          Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 500, 2, "Z Scan, Trip "); //steps:150
-          CMDOutput("%:");
-
-          if (isStop)
-            true;
-
-          Serial.println("Auto-Align Start");
-
-          Scan_AllRange_TwoWay(1, 7, 20, 0, 0, 120, StopValue, 500, 2, "Y Scan, Trip "); //steps:350
-          CMDOutput("%:");
-
-          if (isStop)
-            true;
-
-          Serial.println("Auto-Align Start");
-
-          Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan, Trip "); //steps:350
-          CMDOutput("%:");
-
-          if (isStop)
-            true;
-
-          digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
-
-          Serial.println("Auto Align End");
-
-          isLCD = true;
-          LCD_Update_Mode = 0;
-          LCD_PageNow = 100;
-        }
-        cmd_No = 0;
-        break;
-
-      //Functions: Auto Curing
-      case 3: /* Auto Curing */
-        if (!btn_isTrigger)
-        {
-          btn_isTrigger = false;
-
-          isILStable = false;
-
-          double IL_stable_count = 0;
-          double Acceptable_Delta_IL = 12; //0.8
-          Q_Time = 0;
-
-          time_curing_0 = millis();
-          time_curing_1 = time_curing_0;
-          time_curing_2 = time_curing_1;
-
-          digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
-          delay(5);
-
-          AutoCuring_Best_IL = Cal_PD_Input_IL(Get_PD_Points);
-
-          StopValue = AutoCuring_Best_IL; //0 dB
-
-          Z_ScanSTP = 125; //180
-
-          Serial.println("Auto-Curing");
-          CMDOutput("ACS"); // Auto_Curing Start
-
-          while (true)
-          {
-            PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-            Q_Time = ((millis() - time_curing_0) / 1000);
-            Serial.println("Curing Time:" + String(Q_Time) + " s");
-            Serial.println("Threshold: " + String(AutoCuring_Best_IL - Acceptable_Delta_IL) + ", Now: " + String(PD_Now));
-            Serial.println("PD Power:" + String(PD_Now)); //dB
-
-            digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
-            delay(5);
-
-            isLCD = true;
-            LCD_Update_Mode = 2;
-            delay(1000); //default: 700
-
-            if (isStop)
-              break;
-
-            //Q State
-            if (true)
-            {
-              if (Q_Time <= 540)
-              {
-                Q_State = 1;
-              }
-              else if (Q_Time > 540 && Q_Time <= 600)
-              {
-                Q_State = 2;
-              }
-              else if (Q_Time > 600 && Q_Time <= 700)
-              {
-                Q_State = 3;
-              }
-              else if (Q_Time > 700)
-              {
-                Q_State = 4;
-              }
-            }
-
-            //Q Stop Conditions
-            if (true)
-            {
-              //IL Stable Time ,  70 secs,  curing time threshold , 12.5 mins
-              if (time_curing_2 - time_curing_1 > 70000 && Q_Time >= 800) // 800
-              {
-                Serial.println("IL Stable - Stop Auto Curing");
-                isStop = true;
-                break;
-              }
-              //Total curing time , 14 mins, 840s
-              else if (Q_Time > 840)
-              {
-                Serial.println("Over Limit Curing Time - Stop Auto Curing");
-                isStop = true;
-                break;
-              }
-
-              if (isILStable && (Q_Time) >= 800) //800
-              {
-                Serial.println("IL Stable in Scan - Stop Auto Curing");
-                break;
-              }
-            }
-
-            if (isStop)
-              break;
-
-            //Q scan conditions
-            if (true)
-            {
-              if (Q_State == 2)
-              {
-                Z_ScanSTP = 125; //60
-                Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
-              }
-              else if (Q_State == 3)
-              {
-                Z_ScanSTP = 70; //45
-                Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
-              }
-              else if (Q_State == 4)
-              {
-                Z_backlash = 50; //45
-                Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
-              }
-
-              if (Q_Time > 540)
-              {
-                Acceptable_Delta_IL = 0.25; // Target IL changed
-                Serial.println("Update Scan Condition: " + String(Acceptable_Delta_IL));
-              }
-            }
-
-            PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-
-            if (PD_Now >= (AutoCuring_Best_IL - (Acceptable_Delta_IL + 0.15)))
-            {
-              time_curing_2 = millis();
-              continue;
-            }
-            else
-            {
-              CMDOutput("AS");
-              Serial.println("Auto-Align Start");
-
-              time_curing_3 = millis();
-              Q_Time = (time_curing_3 - time_curing_0) / 1000;
-              Serial.println("Auto-Curing Time: " + String(Q_Time) + " s");
-
-              //Q Scan
-              if (true)
-              {
-                PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-
-                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
-                {
-                  Fine_Scan(1, false); //Q Scan X
-
-                  Serial.println("X PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
-
-                  if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
-                    Fine_Scan(1, false); //Q Scan X
-                }
-
-                if (isStop)
-                  break;
-
-                PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-                Serial.println("Q_State: " + String(Q_State));
-
-                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL) || Q_State == 1)
-                {
-                  Fine_Scan(2, false); //Q Scan Y
-
-                  Serial.println("Y PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
-
-                  if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
-                    Fine_Scan(2, false); //Q Scan Y
-                }
-
-                if (isStop)
-                  break;
-
-                PD_Before = Cal_PD_Input_IL(Get_PD_Points);
-
-                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
-                {
-                  //Q Scan Z
-                  Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 70, 0, 120, StopValue, 500, 2, "Z Scan, Trip ");
-                  CMDOutput("%:");
-                }
-
-                if (isStop)
-                  break;
-              }
-
-              PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-              Serial.println("Q_State: " + String(Q_State));
-
-              if (abs(PD_Before - PD_Now) < 0.3 && (time_curing_3 - time_curing_0) > 750000)
-              {
-                IL_stable_count++;
-
-                if (IL_stable_count > 4)
-                {
-                  Serial.println("IL stable to break");
-                  break;
-                }
-              }
-
-              time_curing_1 = millis();
-              time_curing_2 = time_curing_1;
-            }
-          }
-
-          time_curing_3 = millis();
-          Serial.println("Total Auto-Curing Time: " + String((time_curing_3 - time_curing_0) / 1000) + " s");
-
-          StopValue = Target_IL;
-          digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
-
-          String eepromString = ReadInfoEEPROM(40, 8);                              //Reading z backlash from EEPROM
-          Serial.println("Reset Z backlash from EEPROM: " + ReadInfoEEPROM(40, 8)); //(start_position, data_length)
-          Z_backlash = eepromString.toInt();
-
-          // CMDOutput("ACE"); // Auto_Curing End
-
-          isLCD = true;
-          LCD_Update_Mode = 100;
-          Serial.println("LCD Re-Start");
-        }
-        cmd_No = 0;
-        break;
-
-      case 18: /* Set Target IL */
-        if (true)
-        {
-          StopValue = Target_IL;
-
-          Serial.println("Update Target IL : " + WR_EEPROM(72, String(Target_IL)));
-        }
-        cmd_No = 0;
-        break;
-
-      case 19: /* Get Ref */
-        if (true)
-        {
-          digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
-          delay(3);
-
-          averagePDInput = 0;
-          for (int i = 0; i < 500; i++)
-            averagePDInput += analogRead(34);
-
-          averagePDInput = (averagePDInput / 500);
-
-          ref_Dac = averagePDInput;
-          ref_IL = ILConverter(averagePDInput);
-
-          CleanEEPROM(0, 8); //Clean EEPROM(int startPosition, int datalength)
-
-          WriteInfoEEPROM(String(averagePDInput), 0); //Write Data to EEPROM (data, start_position)
-          EEPROM.commit();
-
-          Serial.println("Update Ref Value : " + String(averagePDInput));
-
-          Serial.println("ref_Dac: " + ReadInfoEEPROM(0, 8) + ", ref_IL: " + String(ref_IL)); //Reading Data from EEPROM(start_position, data_length)
-
-          digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
-          delay(3);
-        }
-
-        cmd_No = 0;
-        break;
-
-      case 21:
-        isGetPower = true;
-        // GetPower_Mode = 1;
-
-        Serial.println("Cmd: Get IL On");
-        digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
-
-        cmd_No = 0;
-        break;
-
-      case 22:
-        isGetPower = false;
-
-        Serial.println("Cmd: Get Power Off");
-        digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
-
-        cmd_No = 0;
-        break;
-
-      case 23:
-        GetPower_Mode = 1;
-        Serial.println("Cmd: Get Power Mode: IL(dB)");
-        cmd_No = 0;
-        break;
-
-      case 24:
-        GetPower_Mode = 2;
-        Serial.println("Cmd: Get Power Mode: Dac");
-        cmd_No = 0;
-        break;
-
-      case 25:
-        GetPower_Mode = 3;
-        Serial.println("Cmd: Get Power Mode: Row IL(dBm)");
-        cmd_No = 0;
-        break;
-
-      case 26:
-        GetPower_Mode = 4;
-        Serial.println("Cmd: Get Power Mode: Row Dac");
-        cmd_No = 0;
-        break;
-
-      case 27:
-        Serial.println(String(Cal_PD_Input_Row_Dac(Get_PD_Points)));
-        cmd_No = 0;
-        break;
-
-      case 31:
-        isLCD = true;
-        LCD_Update_Mode = 100;
-        Serial.println("LCD Re-Start");
-        cmd_No = 0;
-        break;
-      }
-    }
-
-    //Functions: Motion
-    if (cmd_No > 100)
-      switch (cmd_No)
-      {
-        // Function: Cont-------------------------------------------------------------------------
-        //Z feed - cont
-      case 101:
-        while (true)
-        {
-          MotorCC = MotorCC_Z;
-          Move_Motor_Cont(Z_DIR_Pin, Z_STP_Pin, false, 400, delayBetweenStep_Z);
-          MotorCC_Z = false;
-
-          // DataOutput();
-
-          if (cmd == "")
-          {
-            if (digitalRead(R_3))
-              break;
-          }
-          else
-          {
-            if (Serial.available())
-            {
-              String msg = Serial.readString();
-              if (Contains(msg, "0"))
-                break;
-            }
-          }
-        }
-        DataOutput();
-        // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
-        cmd_No = 0;
-        break;
-      case 103:
-        while (true)
-        {
-          MotorCC = MotorCC_Z;
-          Move_Motor_Cont(Z_DIR_Pin, Z_STP_Pin, true, 400, delayBetweenStep_Z);
-          MotorCC_Z = true;
-
-          // DataOutput();
-
-          if (cmd == "")
-          {
-            if (digitalRead(R_3))
-              break;
-          }
-          else
-          {
-            if (Serial.available())
-            {
-              String msg = Serial.readString();
-              if (Contains(msg, "0"))
-                break;
-            }
-          }
-        }
-        DataOutput();
-        // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
-        cmd_No = 0;
-        break;
-
-        //X feed - cont
-      case 102:
-
-        while (true)
-        {
-          MotorCC = MotorCC_X;
-          Move_Motor_Cont(X_DIR_Pin, X_STP_Pin, false, 400, delayBetweenStep_X);
-          MotorCC_X = false;
-
-          // DataOutput();
-
-          if (cmd == "")
-          {
-            if (digitalRead(R_3))
-              break;
-          }
-          else
-          {
-            if (Serial.available())
-            {
-              String msg = Serial.readString();
-              if (Contains(msg, "0"))
-                break;
-            }
-          }
-        }
-        DataOutput();
-        // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
-        cmd_No = 0;
-        break;
-        //X+ - cont
-      case 105:
-
-        while (true)
-        {
-          MotorCC = MotorCC_X;
-          Move_Motor_Cont(X_DIR_Pin, X_STP_Pin, true, 400, delayBetweenStep_X);
-          MotorCC_X = true;
-
-          // DataOutput();
-
-          if (cmd == "")
-          {
-            if (digitalRead(R_2))
-              break;
-          }
-          else
-          {
-            if (Serial.available())
-            {
-              String msg = Serial.readString();
-              if (Contains(msg, "0"))
-                break;
-            }
-          }
-        }
-        DataOutput();
-        // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
-        cmd_No = 0;
-        break;
-
-        //Y feed - cont
-      case 106:
-
-        while (true)
-        {
-          MotorCC = MotorCC_Y;
-          Move_Motor_Cont(Y_DIR_Pin, Y_STP_Pin, false, 400, delayBetweenStep_Y);
-          MotorCC_Y = false;
-
-          // DataOutput();
-
-          if (cmd == "")
-          {
-            if (digitalRead(R_2))
-              break;
-          }
-          else
-          {
-            if (Serial.available())
-            {
-              String msg = Serial.readString();
-              if (Contains(msg, "0"))
-                break;
-            }
-          }
-        }
-        DataOutput();
-        // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
-        cmd_No = 0;
-        break;
-
-      case 104:
-
-        while (true)
-        {
-          MotorCC = MotorCC_Y;
-          Move_Motor_Cont(Y_DIR_Pin, Y_STP_Pin, true, 400, delayBetweenStep_Y);
-          MotorCC_Y = true;
-
-          // DataOutput();
-
-          if (cmd == "")
-          {
-            if (digitalRead(R_2))
-              break;
-          }
-          else
-          {
-            if (Serial.available())
-            {
-              String msg = Serial.readString();
-              if (Contains(msg, "0"))
-                break;
-            }
-          }
-        }
-
-        DataOutput();
-        // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
-        cmd_No = 0;
-        break;
-
-        // Function: Jog-------------------------------------------------------------------------
-
-      //X+ feed - jog
-      case 107:
-        MotorCC = MotorCC_X;
-        Move_Motor_Cont(X_DIR_Pin, X_STP_Pin, false, 400, delayBetweenStep_X);
-        MotorCC_X = true;
-
-        break;
-
-        //X- feed - jog
-      case 108:
-        MotorCC = MotorCC_X;
-        Move_Motor_Cont(X_DIR_Pin, X_STP_Pin, true, 400, delayBetweenStep_X);
-        MotorCC_X = false;
-
-        break;
-
-      //Y+ feed - jog
-      case 109:
-        MotorCC = MotorCC_Y;
-        Move_Motor_Cont(Y_DIR_Pin, Y_STP_Pin, false, 400, delayBetweenStep_Y);
-        MotorCC_Y = true;
-        break;
-
-      //Y- feed - jog
-      case 110:
-        MotorCC = MotorCC_Y;
-        Move_Motor_Cont(Y_DIR_Pin, Y_STP_Pin, true, 400, delayBetweenStep_Y);
-        MotorCC_Y = false;
-        break;
-
-        //Z+ feed - jog
-      case 111:
-        MotorCC = MotorCC_Z;
-        Move_Motor_Cont(Z_DIR_Pin, Z_STP_Pin, true, 400, delayBetweenStep_Z);
-        MotorCC_Z = true;
-        break;
-
-        //Z- feed - jog
-      case 112:
-        MotorCC = MotorCC_Z;
-        Move_Motor_Cont(Z_DIR_Pin, Z_STP_Pin, false, 400, delayBetweenStep_Z);
-        MotorCC_Z = false;
-        break;
-
-        //Go Home
-      case 130:
-        Move_Motor_abs_all(0, 0, 0);
-        break;
-      }
-  }
+  cmd_No = Function_Excecutation(cmd, cmd_No);
 
   if (isGetPower)
   {
-    // Serial.println("GetPower");
     if (millis() - timer_Get_IL_1 > 500)
     {
-      // Serial.println("GetPower 2");
-
       timer_Get_IL_1 = millis();
 
       double value;
@@ -2364,16 +1203,19 @@ bool Fine_Scan(int axis, bool Trip2Stop)
 
       //        X_ScanSTP = 12;
       PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+      
+      CMDOutput("AS");
       msg = Region + ", X Scan, Rount " + String(1) + ", Trip ";
-
       K_OK = Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan, Trip ");
+      CMDOutput("%:");
+
       if (!K_OK)
       {
+        CMDOutput("AS");
         msg = Region + ", X Re-Scan, Rount " + String(1) + ", Trip ";
         Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan, Trip ");
+        CMDOutput("%:");
       }
-
-      CMDOutput("%:");
 
       break;
 
@@ -2381,33 +1223,40 @@ bool Fine_Scan(int axis, bool Trip2Stop)
 
       //        Y_ScanSTP = 10;
       PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
+
+      CMDOutput("AS");
       msg = Region + ", Y Scan, Rount " + String(1) + ", Trip ";
-
       K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 500, 2, "Y Scan, Trip "); //steps:350
-      if (!K_OK)
-      {
-        msg = Region + ", Y Re-Scan, Rount " + String(1) + ", Trip ";
-        K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 500, 2, "Y Scan, Trip ");
-      }
-
       CMDOutput("%:");
 
+      if (!K_OK)
+      {
+        CMDOutput("AS");
+        msg = Region + ", Y Re-Scan, Rount " + String(1) + ", Trip ";
+        K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 500, 2, "Y Scan, Trip ");
+        CMDOutput("%:");
+      }
+      
       break;
 
     case 3:
 
       //        Z_ScanSTP = 100;
       PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
-      msg = Region + ", Z Scan, Rount " + String(1) + ", Trip ";
 
+      CMDOutput("AS");
+      msg = Region + ", Z Scan, Rount " + String(1) + ", Trip ";
       K_OK = Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 500, 2, "Z Scan, Trip ");
+      CMDOutput("%:");
+
       if (!K_OK)
       {
+        CMDOutput("AS");
         msg = Region + ", Z Re-Scan, Rount " + String(1) + ", Trip ";
         K_OK = Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 500, 2, "Z Scan, Trip ");
+        CMDOutput("%:");
       }
 
-      CMDOutput("%:");
       break;
     }
   }
@@ -2415,6 +1264,7 @@ bool Fine_Scan(int axis, bool Trip2Stop)
   else if (axis == 4)
   {
     // Region = Region + "_Fine_Scan (All Range)";
+    CMDOutput("AS");
     msg = Region + "_Fine_Scan (All Range)" + ", Z Scan, Trip ";
     Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 500, 2, "Z Scan, Trip ");
     CMDOutput("%:");
@@ -2424,6 +1274,7 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       return true;
     }
 
+    CMDOutput("AS");
     msg = Region + ", Y Scan, Trip ";
     Scan_AllRange_TwoWay(1, 7, 20, 0, 0, 120, StopValue, 500, 2, "Y Scan, Trip ");
     CMDOutput("%:");
@@ -2433,6 +1284,7 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       return true;
     }
 
+    CMDOutput("AS");
     msg = Region + ", X Scan, Trip ";
     Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan, Trip ");
     CMDOutput("%:");
@@ -2457,41 +1309,37 @@ void AutoAlign()
   StopValue = Target_IL;
   //  Reset_Z_to_Origin(); //Back to origin
 
-  Move_Motor(Z_DIR_Pin, Z_STP_Pin, false, 15000, 12, 150); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
+  Move_Motor(Z_DIR_Pin, Z_STP_Pin, false, AA_SpiralRough_Feed_Steps_Z_A, 12, 150); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
 
   unsigned long time1 = 0, time2 = 0, time3 = 0, time4 = 0, time5 = 0, time6 = 0, time7 = 0;
   double PD_LV1, PD_LV2, PD_LV3, PD_LV4, PD_LV5, PD_LV6;
   double PD_Now = 0;
   time1 = millis();
   Serial.println(" ");
-  CMDOutput("AS");
-  Serial.println("Auto-Align Start");
+  CMDOutput("AA"); //Auto Align
+
+  Serial.println(" ");
+  CMDOutput("AS"); //Align Start
   Serial.println("... Spiral ...");
 
-  //Spiral - Rough - 1
+    //Spiral - Rough - 1
   int matrix_level = 10;
   CMDOutput("^X");
   CMDOutput("R:" + String(M_Level * 2 + 1));
   CMDOutput("C:" + String(M_Level * 2 + 1));
-  // Serial.println("Rows=" + String(matrix_level * 2 + 1));
-  // Serial.println("Columns=" + String(matrix_level * 2 + 1));
-  // Serial.println("^X");
 
-  delayBetweenStep = 25;
-  MinMotroStep = 2000; //1200
+  delayBetweenStep = 15;  //default:25
+  MinMotroStep = AA_SpiralRough_Spiral_Steps_XY_A; //2000
   Region = "Sprial(Rough)";
-  AutoAlign_Spiral(matrix_level, -48, 0); //Input : (Sprial Level, Threshold, stable)  Threshold:123
+  AutoAlign_Spiral(matrix_level, -42, 0); //Input : (Sprial Level, Threshold, stable)  Threshold:123
   CMDOutput("X^");
-  // Serial.println("X^");
-
+ 
   DataOutput();
 
   PD_Now = Cal_PD_Input_IL(Get_PD_Points);
 
   int Threshold = -21.4; //default: 144
-  int stableDelay = 0;   //default : 25
-  // Get_PD_Points = 6;    //default: 15
-  MinMotroStep = 150;
+  stableDelay = 0;       //default : 25
 
   msg = Region + ",Y Scan, Trip ";
 
@@ -2509,7 +1357,7 @@ void AutoAlign()
 
   PD_Now = Cal_PD_Input_IL(Get_PD_Points);
 
-  MinMotroStep = 250;
+  // MinMotroStep = 250;
 
   msg = Region + ",X Scan, Trip ";
 
@@ -2540,79 +1388,24 @@ void AutoAlign()
   Serial.println(String(PD_LV1));
   Serial.println(String(isStop));
 
-  //X, Y Scan - For Spiral Detail
+  //Spiral Fine Scan
   if (PD_LV1 < -40) //default: 300
   {
-    Region = "Sprial(Detail)";
+    Region = "Sprial(Fine)";
     int matrix_level = 10;
     CMDOutput("^X");
     CMDOutput("R:" + String(M_Level * 2 + 1));
     CMDOutput("C:" + String(M_Level * 2 + 1));
-    // Serial.println("Rows=" + String(matrix_level * 2 + 1));
-    // Serial.println("Columns=" + String(matrix_level * 2 + 1));
-    // Serial.println("^X");
 
     delayBetweenStep = 25;
-    MinMotroStep = 1500;                    //700
-    AutoAlign_Spiral(matrix_level, -37, 0); //Input : (Sprial Level, Threshold, stable)  Threshold:166
+    MinMotroStep = AA_SpiralFine_Spiral_Steps_XY_A; //1500
+    AutoAlign_Spiral(matrix_level, -37, 0);         //Input : (Sprial Level, Threshold, stable)  Threshold:166
 
     CMDOutput("X^");
-    // Serial.println("X^");
-
-    //XY Scan after Detail Spiral Scan
-    if (false)
-    {
-      PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-
-      int Threshold = 204;  //default: 144
-      int stableDelay = 50; //default : 25
-
-      delayBetweenStep = 60;
-      Get_PD_Points = 500;
-      MinMotroStep = 150;
-
-      msg = Region + ",Y Scan, Trip ";
-
-      if (PD_Now > 260)
-        MinMotroStep = 25;
-      else if (PD_Now > 230 && PD_Now <= 260)
-        MinMotroStep = 30;
-      else if (PD_Now > 200 && PD_Now <= 230)
-        MinMotroStep = 40;
-      else
-        MinMotroStep = 50;
-      // AutoAlign_Scan_DirectionJudge_V2(1, 20, Threshold, MinMotroStep, stableDelay, MotorCC_Y, delayBetweenStep, Get_PD_Points, 279, msg);
-      Scan_AllRange_TwoWay(1, 5, MinMotroStep, 40, 0, delayBetweenStep, -4.5, Get_PD_Points, 2, msg);
-
-      CMDOutput("%:");
-
-      PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-
-      MinMotroStep = 250;
-
-      msg = Region + ",X Scan, Trip ";
-
-      if (PD_Now > -9)
-        MinMotroStep = 30;
-      else if (PD_Now > -16 && PD_Now <= -9)
-        MinMotroStep = 40;
-      else if (PD_Now > -22.7 && PD_Now <= -16)
-        MinMotroStep = 60;
-      else if (PD_Now > -29.5)
-        MinMotroStep = 80;
-      else
-        MinMotroStep = 140;
-      // AutoAlign_Scan_DirectionJudge_V2(0, 17, Threshold, MinMotroStep, stableDelay, MotorCC_X, delayBetweenStep, Get_PD_Points, 279, msg);
-      Scan_AllRange_TwoWay(0, 5, MinMotroStep, 40, 0, delayBetweenStep, -4.5, Get_PD_Points, 2, msg);
-
-      CMDOutput("%:");
-    }
   }
 
   PD_LV2 = Cal_PD_Input_IL(Get_PD_Points);
   time3 = millis();
-  Serial.println("X, Y Scan (after Spiral) TimeSpan : " + String((time3 - time2) / 1000) + " s");
-  Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
 
   if (isStop)
     return;
@@ -2620,7 +1413,7 @@ void AutoAlign()
   PD_Now = PD_LV2;
   if (PD_Now < -50)
   {
-    Serial.println("High loss before rough-scan");
+    Serial.println("High loss after spiral scan");
     return;
   }
 
@@ -2643,76 +1436,80 @@ void AutoAlign()
     Serial.println("-- Scan(Rough) --");
     for (int i = 0; i < 15; i++)
     {
-      if (i > 0 && abs(PD_After - PD_Before) < 0.1) //1.2
+      //Scan(Rough) : Feed Z Loop
+      if (true)
       {
-        Serial.println("Break Loop ... :" + String(PD_After) + ", " + String(PD_Before));
-        return;
-      }
-      else
-        Serial.println("X, Y, Z Scan(Rough) Round :" + String(i + 1) + ", After:" + String(PD_After) + ", Before:" + String(PD_Before));
-
-      PD_Before = Cal_PD_Input_IL(Get_PD_Points);
-
-      if (PD_Before > stopValue)
-        break;
-
-      stableDelay = 100;
-      double PD_Z_before = 0;
-      for (int r = 0; r < 5; r++)
-      {
-        if (isStop)
+        if (i > 0 && abs(PD_After - PD_Before) < 0.1) //1.2
+        {
+          Serial.println("Break Loop ... :" + String(PD_After) + ", " + String(PD_Before));
           return;
-
-        PD_Z_before = Cal_PD_Input_IL(Get_PD_Points);
-        Serial.println("PD Z before:" + String(PD_Z_before));
-
-        int motorStep = 1000;
-        if (PD_Z_before < -30)
-        {
-          motorStep = 10000;
-          Move_Motor(Z_DIR_Pin, Z_STP_Pin, true, motorStep, 20, stableDelay); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
         }
         else
-        {
-          double ratio_idx = 2.5;
-          if (PD_Z_before > -29.5 && PD_Z_before <= -22.7)
-            ratio_idx = 3.2; //default: 2.5
-          else if (PD_Z_before > -22.7 && PD_Z_before <= -18.2)
-            ratio_idx = 2.9; //default: 2
-          else if (PD_Z_before > -18.2 && PD_Z_before <= -9)
-            ratio_idx = 2.5; //default: 1.8
-          else if (PD_Z_before > -9)
-            ratio_idx = 1.8; //default: 0.8
+          Serial.println("X, Y, Z Scan(Rough) Round :" + String(i + 1) + ", After:" + String(PD_After) + ", Before:" + String(PD_Before));
 
-          //default: 0.5
-          motorStep = abs(ratio_idx * (588 + (55 * abs(PD_Z_before)))); //Default: 588-55*pd
-          if (motorStep < 1000)
-            motorStep = 1000; //default: 800
+        PD_Before = Cal_PD_Input_IL(Get_PD_Points);
 
-          Serial.println("ratio_idx : " + String(ratio_idx));
-
-          Move_Motor(Z_DIR_Pin, Z_STP_Pin, true, motorStep, 20, stableDelay); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
-        }
-
-        Serial.println("Z feed : " + String(motorStep));
-        DataOutput();
-
-        PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-
-        if (PD_Now > stopValue)
-        {
-          Serial.println("Over Stop Value");
-        }
-
-        if (PD_Now <= PD_Z_before || (PD_Z_before - PD_Now) > 30 || abs(PD_Z_before - PD_Now) <= 1.5)
-        {
-          Serial.println("Z feed break, Now: " + String(PD_Now) + ", Before: " + String(PD_Z_before) + ", Z Pos Now:" + String(Z_Pos_Now));
-          Serial.println(" ");
+        if (PD_Before > stopValue)
           break;
-        }
-        else
+
+        stableDelay = 100;
+        double PD_Z_before = 0;
+        for (int r = 0; r < 5; r++)
         {
-          Serial.println("Z feed , Now: " + String(PD_Now) + ", Before: " + String(PD_Z_before) + ", Z Pos Now:" + String(Z_Pos_Now));
+          if (isStop)
+            return;
+
+          PD_Z_before = Cal_PD_Input_IL(Get_PD_Points);
+          Serial.println("PD Z before:" + String(PD_Z_before));
+
+          int motorStep = AA_ScanRough_Feed_Steps_Z_A; //default: 10000
+          if (PD_Z_before < -30)
+          {
+            motorStep = AA_ScanRough_Feed_Steps_Z_A;
+            Move_Motor(Z_DIR_Pin, Z_STP_Pin, true, motorStep, 20, stableDelay); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
+          }
+          else
+          {
+            double ratio_idx = AA_ScanRough_Feed_Ratio_Z_A;
+            if (PD_Z_before > -29.5 && PD_Z_before <= -22.7)
+              ratio_idx = AA_ScanRough_Feed_Ratio_Z_A; //default: 3.2
+            else if (PD_Z_before > -22.7 && PD_Z_before <= -18.2)
+              ratio_idx = AA_ScanRough_Feed_Ratio_Z_B; //default: 2.9
+            else if (PD_Z_before > -18.2 && PD_Z_before <= -9)
+              ratio_idx = AA_ScanRough_Feed_Ratio_Z_C; //default: 2.5
+            else if (PD_Z_before > -9)
+              ratio_idx = AA_ScanRough_Feed_Ratio_Z_D; //default: 1.8
+
+            //default: 0.5
+            motorStep = abs(ratio_idx * (588 + (55 * abs(PD_Z_before)))); //Default: 588-55*pd
+            if (motorStep < AA_ScanRough_Feed_Steps_Z_B)
+              motorStep = AA_ScanRough_Feed_Steps_Z_B; //default: 1000
+
+            Serial.println("ratio_idx : " + String(ratio_idx));
+
+            Move_Motor(Z_DIR_Pin, Z_STP_Pin, true, motorStep, 20, stableDelay); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
+          }
+
+          Serial.println("Z feed : " + String(motorStep));
+          DataOutput();
+
+          PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+
+          if (PD_Now > stopValue)
+          {
+            Serial.println("Over Stop Value");
+          }
+
+          if (PD_Now <= PD_Z_before || (PD_Z_before - PD_Now) > 30 || abs(PD_Z_before - PD_Now) <= 1.5)
+          {
+            Serial.println("Z feed break, Now: " + String(PD_Now) + ", Before: " + String(PD_Z_before) + ", Z Pos Now:" + String(Z_Pos_Now));
+            Serial.println(" ");
+            break;
+          }
+          else
+          {
+            Serial.println("Z feed , Now: " + String(PD_Now) + ", Before: " + String(PD_Z_before) + ", Z Pos Now:" + String(Z_Pos_Now));
+          }
         }
       }
 
@@ -2721,7 +1518,7 @@ void AutoAlign()
       // delayBetweenStep = 8;
       stableDelay = 25; //default: 25
 
-      //default:220
+      //Scan(Rough) : Spiral, if IL<-54
       if (PD_Now < -54)
       {
         Serial.println("Spiral : in z-feed region");
@@ -2729,23 +1526,17 @@ void AutoAlign()
         CMDOutput("^X");
         CMDOutput("R:" + String(M_Level * 2 + 1));
         CMDOutput("C:" + String(M_Level * 2 + 1));
-        // Serial.println("Rows=" + String(23));
-        // Serial.println("Columns=" + String(23));
-        // Serial.println("^X");
 
         MinMotroStep = 300; //350
-        //Input : (Sprial Level, Threshold, stable)
         if (!AutoAlign_Spiral(11, -36.4, 0))
         {
           CMDOutput("X^");
-          // Serial.println("X^");
           Serial.println("Spiral: Target IL not found");
           Serial.println(" ");
 
           return;
         }
         CMDOutput("X^");
-        // Serial.println("X^");
 
         Serial.println(" ");
 
@@ -2759,14 +1550,12 @@ void AutoAlign()
         msg = Region + ", Y Scan" + ", Trip ";
 
         AutoAlign_Scan_DirectionJudge_V2(1, 20, Threshold, 150, stableDelay, MotorCC_Y, delayBetweenStep, Get_PD_Points, 279, msg);
-        // Scan_AllRange_TwoWay(1, 5, 200, 40, 0, 8, 279, 1, 1, msg);
 
         CMDOutput("%:");
 
         msg = Region + ", X Scan" + ", Trip ";
 
         AutoAlign_Scan_DirectionJudge_V2(0, 25, Threshold, 150, stableDelay, MotorCC_X, delayBetweenStep, Get_PD_Points, 279, msg);
-        // Scan_AllRange_TwoWay(0, 5, 200, 40, 0, 8, 279, 1, 1, msg);
 
         CMDOutput("%:");
 
@@ -2806,149 +1595,134 @@ void AutoAlign()
       if (PD_After > stopValue)
         break;
 
-      delayBetweenStep = 80;
-      MinMotroStep = 350; //800
-      stableDelay = 0;    //default:45
+      //Scan(Rough) : XY Scan
+      if (true)
+      {
+        delayBetweenStep = 80;
+        MinMotroStep = 350; //800
+        stableDelay = 0;    //default:45
 
-      if (isStop)
-        return;
+        if (isStop)
+          return;
 
-      Region = "Scan(Rough) (3)";
+        Region = "Scan(Rough) (3)";
 
-      msg = Region + ", Y Scan" + ", Trip ";
-      if (PD_After > -9)
-        MinMotroStep = 25; //default:25
-      else if (PD_After > -16 && PD_After <= -9)
-        MinMotroStep = 30; //default:30
-      else if (PD_After > -22.7 && PD_After <= -16)
-        MinMotroStep = 40; //default:40
-      else
-        MinMotroStep = 70; //default:70
+        msg = Region + ", Y Scan" + ", Trip ";
+        if (PD_After > -9)
+          MinMotroStep = AA_ScanRough_Scan_Steps_Y_A; //default:25
+        else if (PD_After > -16 && PD_After <= -9)
+          MinMotroStep = AA_ScanRough_Scan_Steps_Y_B; //default:30
+        else if (PD_After > -22.7 && PD_After <= -16)
+          MinMotroStep = AA_ScanRough_Scan_Steps_Y_C; //default:40
+        else
+          MinMotroStep = AA_ScanRough_Scan_Steps_Y_D; //default:70
 
-      PD_After = AutoAlign_Scan_DirectionJudge_V2(1, 20, Threshold, MinMotroStep, stableDelay, MotorCC_Y, delayBetweenStep, Get_PD_Points, stopValue, msg);
-      // Scan_AllRange_TwoWay(1, 6, MinMotroStep, 0, 0, delayBetweenStep, stopValue, Get_PD_Points, 2, msg);
+        CMDOutput("AS");
+        PD_After = AutoAlign_Scan_DirectionJudge_V2(1, 20, Threshold, MinMotroStep, stableDelay, MotorCC_Y, delayBetweenStep, Get_PD_Points, stopValue, msg);
+        CMDOutput("%:");
 
-      CMDOutput("%:");
+        msg = Region + ", X Scan" + ", Trip ";
+        if (PD_After > -9)
+          MinMotroStep = AA_ScanRough_Scan_Steps_X_A; //default:25
+        else if (PD_After > -16 && PD_After <= -9)
+          MinMotroStep = AA_ScanRough_Scan_Steps_X_B; //default:30
+        else if (PD_After > -22.7 && PD_After <= -16)
+          MinMotroStep = AA_ScanRough_Scan_Steps_X_C; //default:80
+        else if (PD_After > -30 && PD_After <= -22.7)
+          MinMotroStep = AA_ScanRough_Scan_Steps_X_D; //default:100
+        else
+          MinMotroStep = AA_ScanRough_Scan_Steps_X_E; //default:120
 
-      // PD_After = Cal_PD_Input_IL(Get_PD_Points);
-
-      msg = Region + ", X Scan" + ", Trip ";
-      if (PD_After > -9)
-        MinMotroStep = 25; //default:25
-      else if (PD_After > -16 && PD_After <= -9)
-        MinMotroStep = 30; //default:30
-      else if (PD_After > -22.7 && PD_After <= -16)
-        MinMotroStep = 80; //default:80
-      else if (PD_After > -30)
-        MinMotroStep = 100; //default:100
-      else
-        MinMotroStep = 120; //default:120
-
-      PD_After = AutoAlign_Scan_DirectionJudge_V2(0, 20, Threshold, MinMotroStep, stableDelay, MotorCC_X, delayBetweenStep, Get_PD_Points, stopValue, msg);
-      // Scan_AllRange_TwoWay(0, 6, MinMotroStep, 0, 0, delayBetweenStep, stopValue, Get_PD_Points, 2, msg);
-
-      CMDOutput("%:");
+        CMDOutput("AS");
+        PD_After = AutoAlign_Scan_DirectionJudge_V2(0, 20, Threshold, MinMotroStep, stableDelay, MotorCC_X, delayBetweenStep, Get_PD_Points, stopValue, msg);
+        CMDOutput("%:");
+      }
 
       PD_After = Cal_PD_Input_IL(Get_PD_Points);
 
       DataOutput();
 
-      if (abs(PD_After - PDValue_After_Scan) < 0.1 && PD_After > -10) //default:16
+      //Scan(Rough) : stop condition
+      if (true)
       {
-        Serial.println("Scan(Rough)(A) - Pass best Z position");
-        Serial.println(String(PD_After) + ", " + String(PDValue_After_Scan));
-        break;
-      }
+        if (abs(PD_After - PDValue_After_Scan) < 0.1 && PD_After > -10) //default:16
+        {
+          Serial.println("Scan(Rough)(A) - Pass best Z position");
+          Serial.println(String(PD_After) + ", " + String(PDValue_After_Scan));
+          break;
+        }
 
-      if (PD_After < PDValue_After_Scan && PD_After > -10) //default:16
-      {
-        Serial.println("Scan(Rough)(B) - Pass best Z position : " + String(PD_After) + ", " + String(PDValue_After_Scan));
-        break;
-      }
+        if (PD_After < PDValue_After_Scan && PD_After > -10) //default:16
+        {
+          Serial.println("Scan(Rough)(B) - Pass best Z position : " + String(PD_After) + ", " + String(PDValue_After_Scan));
+          break;
+        }
 
-      if (PD_After < -42) //default:16
-      {
-        Serial.println("Scan(Rough)(C) - Pass best Z position");
-        Serial.println(String(PD_After) + ", " + String(PDValue_After_Scan));
-        break;
-      }
+        if (PD_After < -42) //default:16
+        {
+          Serial.println("Scan(Rough)(C) - Pass best Z position");
+          Serial.println(String(PD_After) + ", " + String(PDValue_After_Scan));
+          break;
+        }
 
-      PDValue_After_Scan = PD_After;
+        PDValue_After_Scan = PD_After;
 
-      if (i == 1)
-      {
-        X_pos_before = X_Pos_Now;
-        Y_pos_before = Y_Pos_Now;
-      }
-      else if (i > 1)
-      {
-        delta_X = X_Pos_Now - X_pos_before;
-        delta_Y = Y_Pos_Now - Y_pos_before;
-        X_pos_before = X_Pos_Now;
-        Y_pos_before = Y_Pos_Now;
-        Serial.println("------- Delta X: " + String(delta_X) + ", Delta Y: " + String(delta_Y));
-      }
+        if (i == 1)
+        {
+          X_pos_before = X_Pos_Now;
+          Y_pos_before = Y_Pos_Now;
+        }
+        else if (i > 1)
+        {
+          delta_X = X_Pos_Now - X_pos_before;
+          delta_Y = Y_Pos_Now - Y_pos_before;
+          X_pos_before = X_Pos_Now;
+          Y_pos_before = Y_Pos_Now;
+          Serial.println("------- Delta X: " + String(delta_X) + ", Delta Y: " + String(delta_Y));
+        }
 
-      if (PD_After > stopValue)
-      {
-        Serial.println("Better than stopValue: " + String(PD_After) + ", stopvalue: " + String(stopValue));
-        Serial.println(" ");
-        break;
-      }
+        if (PD_After > stopValue)
+        {
+          Serial.println("Better than stopValue: " + String(PD_After) + ", stopvalue: " + String(stopValue));
+          break;
+        }
 
-      if (PD_After < -54)
-      {
-        Serial.println("Rough Scan : High loss");
-        return;
+        if (PD_After < -54)
+        {
+          Serial.println("Rough Scan : High loss");
+          return;
+        }
       }
     }
   }
 
   PD_LV3 = Cal_PD_Input_IL(Get_PD_Points);
   time4 = millis();
-  Serial.println("Scan(Rough) TimeSpan : " + String((time4 - time3) / 1000) + " s");
+  // Serial.println("Scan(Rough) TimeSpan : " + String((time4 - time3) / 1000) + " s");
 
   if (isStop)
     return;
 
-  //Scan(Detail 1)
+  //Scan(Fine)
   Serial.println(" ");
-  Serial.println("... X, Y, Z Scan(Detail 1) ...");
-  Region = "Scan(Detail 1)";
-
-  if (false)
-  {
-    // Fine_Scan(4, true);
-
-    Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
-  }
-
-  PD_LV4 = Cal_PD_Input_IL(Get_PD_Points);
-  time5 = millis();
-  Serial.println("Scan(Detail 1) TimeSpan : " + String((time5 - time4) / 1000) + " s");
-
-  if (isStop)
-    return;
-
-  //Scan(Detail 2)
-  Serial.println(" ");
-  Serial.println("........ X, Y, Z Scan(Detail 2) ........");
-  Region = "Scan(Detail 2)";
+  Serial.println("........ X, Y, Z Scan(Fine) ........");
+  Region = "Scan(Fine)";
 
   PD_Now = Cal_PD_Input_IL(Get_PD_Points);
   PDValue_Best = PD_Now;
 
   if (true && PD_Now > -25)
   {
-    Scan_AllRange_TwoWay(2, 6, 200, 0, 0, 60, StopValue, 500, 2, Region + "_Z Scan, Trip ");
+    CMDOutput("AS");
+    Scan_AllRange_TwoWay(2, 6, AA_ScanFine_Scan_Steps_Z_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, StopValue, 500, 2, Region + "_Z Scan, Trip ");
     CMDOutput("%:");
 
-    // Fine_Scan(2, true);
-    Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 80, StopValue, 550, 2, Region + "_Y Scan, Trip ");
+    CMDOutput("AS");
+    Scan_AllRange_TwoWay(1, 8, AA_ScanFine_Scan_Steps_Y_A, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 550, 2, Region + "_Y Scan, Trip ");
     CMDOutput("%:");
 
-    // Fine_Scan(1, true);
-    Scan_AllRange_TwoWay(0, 8, 20, 0, 0, 80, StopValue, 550, 2, Region + "_X Scan, Trip ");
+    CMDOutput("AS");
+    Scan_AllRange_TwoWay(0, 8, AA_ScanFine_Scan_Steps_X_A, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 550, 2, Region + "_X Scan, Trip ");
     CMDOutput("%:");
 
     Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
@@ -2956,36 +1730,40 @@ void AutoAlign()
 
   //    return;
 
-  PD_LV5 = Cal_PD_Input_IL(Get_PD_Points);
+  PD_LV4 = Cal_PD_Input_IL(Get_PD_Points);
+  time5 = millis();
+
   PDValue_Best = -2.45;
-  time6 = millis();
 
   if (isStop)
     return;
 
-  //Detail-Scan-C
+  //Scan(Final)
   Serial.println(" ");
-  Serial.println("... X, Y, Z Scan(Detail 3) ...");
-  Region = "Scan(Detail 3)";
+  Serial.println("... X, Y, Z Scan(Final) ...");
+  Region = "Scan(Final)";
 
-  if (false && abs(PD_LV5 - PD_LV4) > 0.1)
+  if (false && abs(PD_LV4 - PD_LV3) > 0.1)
   {
-    Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 500, 2, "Z Scan, Trip "); //steps:150
+    CMDOutput("AS");
+    Scan_AllRange_TwoWay(2, 8, AA_ScanFinal_Scan_Steps_Z_A, AA_ScanFinal_Scan_Delay_X_A, 0, 100, StopValue, 500, 2, "Z Scan, Trip "); //steps:150
     CMDOutput("%:");
 
     // Fine_Scan(2, true);
-    Scan_AllRange_TwoWay(1, 7, 20, 0, 0, 120, StopValue, 500, 2, "Y Scan, Trip "); //steps:350
+    CMDOutput("AS");
+    Scan_AllRange_TwoWay(1, 7, AA_ScanFinal_Scan_Steps_Y_A, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip "); //steps:350
     CMDOutput("%:");
 
     // Fine_Scan(1, true);
-    Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan, Trip "); //steps:350
+    CMDOutput("AS");
+    Scan_AllRange_TwoWay(0, 8, AA_ScanFinal_Scan_Steps_X_A, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "X Scan, Trip "); //steps:350
     CMDOutput("%:");
 
     Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
   }
 
-  PD_LV6 = Cal_PD_Input_IL(Get_PD_Points);
-  time7 = millis();
+  PD_LV5 = Cal_PD_Input_IL(Get_PD_Points);
+  time6 = millis();
 
   digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
 
@@ -2996,17 +1774,14 @@ void AutoAlign()
   LCD_Update_Mode = 0;
   LCD_PageNow = 100;
 
-  //      Threshold = 198;
   Serial.println(" ");
   Serial.println("Sprial(Rough) TimeSpan : " + String((time2 - time1) / 1000) + " s, PD : " + String(PD_LV1));
-  Serial.println("Sprial(Detail) TimeSpan : " + String((time3 - time2) / 1000) + " s, PD : " + String(PD_LV2));
+  Serial.println("Sprial(Fine) TimeSpan : " + String((time3 - time2) / 1000) + " s, PD : " + String(PD_LV2));
   Serial.println("Scan(Rough) TimeSpan : " + String((time4 - time3) / 1000) + " s, PD : " + String(PD_LV3));
-  Serial.println("Scan(Detail 1) TimeSpan : " + String((time5 - time4) / 1000) + " s, PD : " + String(PD_LV4));
-  Serial.println("Scan(Detail 2) TimeSpan : " + String((time6 - time5) / 1000) + " s, PD : " + String(PD_LV5));
-  Serial.println("Scan(Detail 3) TimeSpan : " + String((time7 - time6) / 1000) + " s, PD : " + String(PD_LV6));
-  Serial.println("Auto Align TimeSpan : " + String((time7 - time1) / 1000) + " s");
-  Serial.println("Position XYZ: " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) +
-                 ", " + String(Z_Pos_Now));
+  Serial.println("Scan(Fine) TimeSpan : " + String((time5 - time4) / 1000) + " s, PD : " + String(PD_LV4));
+  Serial.println("Scan(Final) TimeSpan : " + String((time6 - time5) / 1000) + " s, PD : " + String(PD_LV5));
+  Serial.println("Auto Align TimeSpan : " + String((time6 - time1) / 1000) + " s");
+  DataOutput(true);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -3101,9 +1876,7 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
         timer_2 = millis();
         ts = (timer_2 - timer_1) * 0.001;
         CMDOutput("t:" + String(ts, 2));
-        // Serial.print("TS:");
-        // Serial.println(ts, 2);
-
+        
         return true;
       }
     }
@@ -3116,7 +1889,6 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
     //To Left
 
     MotorCC = false;
-    // Move_Motor(X_DIR_Pin, X_STP_Pin, MotorCC, X_backlash, delayBetweenStep, stableDelay, false);
 
     while (x >= (-n))
     {
@@ -3125,7 +1897,6 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
       PD_Now = Cal_PD_Input_IL(Get_PD_Points);
 
       CMDOutput("$[" + String(x) + "," + String(y) + "]=" + PD_Now);
-      // Serial.println("$[" + String(x) + "," + String(y) + "]=" + PD_Now);
 
       if (PD_Now > PD_BestIL)
       {
@@ -3152,8 +1923,6 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
         timer_2 = millis();
         ts = (timer_2 - timer_1) * 0.001;
         CMDOutput("t:" + String(ts, 2));
-        // Serial.print("TS:");
-        // Serial.println(ts, 2);
 
         return true;
       }
@@ -3172,8 +1941,6 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
 
     MotorCC = true;
 
-    // Move_Motor(Y_DIR_Pin, Y_STP_Pin, MotorCC, Y_backlash, delayBetweenStep, stableDelay, false);
-
     int nM = n;
     while (y <= (nM))
     {
@@ -3181,7 +1948,6 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
 
       PD_Now = Cal_PD_Input_IL(Get_PD_Points);
       CMDOutput("$[" + String(x) + "," + String(y) + "]=" + PD_Now);
-      // Serial.println("$[" + String(x) + "," + String(y) + "]=" + PD_Now);
 
       if (PD_Now > PD_BestIL)
       {
@@ -3207,8 +1973,6 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
         timer_2 = millis();
         ts = (timer_2 - timer_1) * 0.001;
         CMDOutput("t:" + String(ts, 2));
-        // Serial.print("TS:");
-        // Serial.println(ts, 2);
 
         return true;
       }
@@ -3226,7 +1990,6 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
     //To Right
 
     MotorCC = true;
-    // Move_Motor(X_DIR_Pin, X_STP_Pin, MotorCC, X_backlash, delayBetweenStep, stableDelay, false);
 
     while (x <= (n))
     {
@@ -3234,7 +1997,6 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
 
       PD_Now = Cal_PD_Input_IL(Get_PD_Points);
       CMDOutput("$[" + String(x) + "," + String(y) + "]=" + PD_Now);
-      // Serial.println("$[" + String(x) + "," + String(y) + "]=" + PD_Now);
 
       if (PD_Now > PD_BestIL)
       {
@@ -3260,8 +2022,6 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
         timer_2 = millis();
         ts = (timer_2 - timer_1) * 0.001;
         CMDOutput("t:" + String(ts, 2));
-        // Serial.print("TS:");
-        // Serial.println(ts, 2);
 
         return true;
       }
@@ -3279,7 +2039,6 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
     //Down
 
     MotorCC = false;
-    // Move_Motor(Y_DIR_Pin, Y_STP_Pin, MotorCC, Y_backlash, delayBetweenStep, stableDelay);
 
     while (y >= (-n))
     {
@@ -3287,7 +2046,6 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
 
       PD_Now = Cal_PD_Input_IL(Get_PD_Points);
       CMDOutput("$[" + String(x) + "," + String(y) + "]=" + PD_Now);
-      // Serial.println("$[" + String(x) + "," + String(y) + "]=" + PD_Now);
 
       if (PD_Now > PD_BestIL)
       {
@@ -3313,8 +2071,6 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
         timer_2 = millis();
         ts = (timer_2 - timer_1) * 0.001;
         CMDOutput("t:" + String(ts, 2));
-        // Serial.print("TS:");
-        // Serial.println(ts, 2);
 
         return true;
       }
@@ -3346,33 +2102,7 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
     Move_Motor_abs(1, PD_Best_Pos_Abs[1]);
 
     delay(200);
-
-    // delta_X = PD_BestIL_Position[0] - x;
-    // delta_Y = PD_BestIL_Position[1] - y;
-
-    // String ss = "Delta x, y = " + String(delta_X) + "," + String(delta_Y);
-    // Serial.println(ss);
-
-    // if (delta_X < 0)
-    //   MotorCC = false;
-    // else
-    //   MotorCC = true;
-
-    // digitalWrite(X_DIR_Pin, MotorCC);
-    // delay(5);
-    // step(X_STP_Pin, MinMotroStep * abs(delta_X), 5);
-    // delay(stableDelay);
-
-    // if (delta_Y < 0)
-    //   MotorCC = false;
-    // else
-    //   MotorCC = true;
-
-    // digitalWrite(Y_DIR_Pin, MotorCC);
-    // delay(5);
-    // step(Y_STP_Pin, MinMotroStep * abs(delta_Y), 5);
-    // delay(stableDelay);
-
+   
     double finalIL = Cal_PD_Input_IL(Get_PD_Points);
     Serial.println("Final IL : " + String(finalIL));
 
@@ -3385,14 +2115,11 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
     timer_2 = millis();
     ts = (timer_2 - timer_1) * 0.001;
     CMDOutput("t:" + String(ts, 2));
-    // Serial.print("TS:");
-    // Serial.println(ts, 2);
   }
   else
   {
     Serial.println("Delta step out of range.");
   }
-  //  Serial.println("X^");
   return false;
 }
 
@@ -4583,6 +3310,1278 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------------------------------------------------------------------
+
+int Function_Classification(String cmd, int ButtonSelected)
+{
+  if (cmd != "" && ButtonSelected < 0)
+  {
+    cmd.trim();
+    Serial.println("get cmd: " + String(cmd));
+
+    //Keyboard - Motor Control
+    if (cmd == "Xp1")
+    {
+      cmd_No = 102;
+    }
+    else if (cmd == "Xm1")
+    {
+      cmd_No = 105;
+    }
+    else if (cmd == "Yp1")
+    {
+      cmd_No = 106;
+    }
+    else if (cmd == "Ym1")
+    {
+      cmd_No = 104;
+    }
+    else if (cmd == "Zp1")
+    {
+      cmd_No = 103;
+    }
+    else if (cmd == "Zm1")
+    {
+      cmd_No = 101;
+    }
+
+    //Jog
+    else if (Contains(cmd, "Jog_"))
+    {
+      cmd.remove(0, 4);
+
+      byte dirPin, stpPin;
+      bool dirt;
+
+      if (Contains(cmd, "X"))
+      {
+        dirPin = X_DIR_Pin;
+        stpPin = X_STP_Pin;
+      }
+      else if (Contains(cmd, "Y"))
+      {
+        dirPin = Y_DIR_Pin;
+        stpPin = Y_STP_Pin;
+      }
+      else if (Contains(cmd, "Z"))
+      {
+        dirPin = Z_DIR_Pin;
+        stpPin = Z_STP_Pin;
+      }
+
+      cmd.remove(0, 1);
+
+      if (Contains(cmd, "m"))
+      {
+        dirt = false;
+      }
+      else if (Contains(cmd, "p"))
+      {
+        dirt = true;
+      }
+
+      cmd.remove(0, 2);
+
+      Move_Motor(dirPin, stpPin, dirt, cmd.toDouble(), 80, 100); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
+    }
+
+    //Abs
+    else if (Contains(cmd, "Abs_"))
+    {
+      cmd.remove(0, 4);
+
+      byte dirPin, stpPin, xyz;
+      bool dirt;
+
+      if (Contains(cmd, "X"))
+      {
+        dirPin = X_DIR_Pin;
+        stpPin = X_STP_Pin;
+        xyz = 0;
+      }
+      else if (Contains(cmd, "Y"))
+      {
+        dirPin = Y_DIR_Pin;
+        stpPin = Y_STP_Pin;
+        xyz = 1;
+      }
+      else if (Contains(cmd, "Z"))
+      {
+        dirPin = Z_DIR_Pin;
+        stpPin = Z_STP_Pin;
+        xyz = 2;
+      }
+
+      cmd.remove(0, 2);
+
+      Move_Motor_abs(xyz, cmd.toDouble());
+    }
+
+    //Abs All
+    else if (Contains(cmd, "Abs_All_"))
+    {
+      Serial.println("Abs all");
+      cmd.remove(0, 8);
+
+      int travel_x = 0, travel_y = 0, travel_z = 0;
+
+      travel_x = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //xyz
+
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      travel_y = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //xyz
+
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      travel_z = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //xyz
+
+      Move_Motor_abs_all(travel_x, travel_y, travel_z);
+    }
+
+    //(CScan) Scan Twoway Command
+    else if (Contains(cmd, "CScan_"))
+    {
+      cmd.remove(0, 6);
+      Serial.println(cmd);
+
+      int XYZ;
+      int count;
+      int motorStep;
+      int stableDelay;
+      bool Direction;
+      int StopPDValue;
+      int Get_PD_Points;
+      int Trips;
+
+      XYZ = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //xyz
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      count = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //count
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      motorStep = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //step
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      stableDelay = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //stable delay
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      Direction = cmd.substring(0, cmd.indexOf('_')) == "1";
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //direction
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      StopPDValue = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //stopValue
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      Get_PD_Points = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //average points
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      Trips = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd); //trips
+
+      int delayBetweenStep = 50;
+      String msg = "Trip ";
+
+      CMDOutput("AS");
+      Serial.println("Auto-Align Start");
+
+      Scan_AllRange_TwoWay(XYZ, count, motorStep, stableDelay,
+                           Direction, delayBetweenStep, StopPDValue, Get_PD_Points, Trips, msg);
+
+      CMDOutput("%:");
+
+      Serial.println("Auto Align End");
+    }
+
+    //(SScan) Spiral Scan Command
+    else if (Contains(cmd, "SScan_"))
+    {
+      cmd.remove(0, 6);
+      Serial.println(cmd);
+
+      int matrix;
+      int motorStep;
+      int stb;
+      int delay_btw_steps;
+      int StopPDValue;
+      int Z_Layers;
+      int Z_Steps;
+
+      matrix = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //matrix
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      motorStep = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //step
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      stb = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //stable delay
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      //          delay_btw_steps = cmd.substring(0, cmd.indexOf('_')) == "1";
+      delay_btw_steps = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //delay_btw_steps
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      StopPDValue = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //stopValue
+      cmd.remove(0, cmd.indexOf('_') + 1);
+      //          Serial.println(cmd);  //stopValue
+
+      Z_Layers = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //Z_Layers
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
+      Z_Steps = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd); //Z_Steps
+
+      digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+      delay(5);
+
+      M_Level = matrix;
+
+      CMDOutput("AS");
+      Serial.println("Auto-Align Start");
+      CMDOutput("^X");
+      CMDOutput("R:" + String(M_Level * 2 + 1));
+      CMDOutput("C:" + String(M_Level * 2 + 1));
+      // Serial.println("Rows=" + String(M_Level * 2 + 1));
+      // Serial.println("Columns=" + String(M_Level * 2 + 1));
+      // Serial.println("^X");
+
+      MinMotroStep = motorStep; //350
+      stableDelay = stb;
+      delayBetweenStep = delay_btw_steps;
+
+      if (Z_Layers > 1)
+        sprial_JumpToBest = false;
+
+      for (int ZL = 0; ZL < Z_Layers; ZL++)
+      {
+        if (ZL > 0)
+        {
+          Move_Motor(Z_DIR_Pin, Z_STP_Pin, false, Z_Steps, 8, 150); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
+        }
+
+        AutoAlign_Spiral(M_Level, StopPDValue, stableDelay); //Input : (Sprial Level, Threshold, stable) Threshold:128
+      }
+
+      sprial_JumpToBest = true;
+
+      CMDOutput("X^");
+      // Serial.println("X^");
+
+      digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
+    }
+
+    //Set Parameter
+    else if (Contains(cmd, "Set::"))
+    {
+      cmd.remove(0, 5);
+
+      String ParaName = cmd.substring(0, cmd.indexOf('='));
+      cmd.remove(0, cmd.indexOf('=') + 1);
+
+      Serial.println("ParaName:" + ParaName + ", Value:" + String(cmd.toDouble()));
+
+      if (ParaName == "AA_SpiralRough_Feed_Steps_Z_A")
+        AA_SpiralRough_Feed_Steps_Z_A = cmd.toInt();
+      else if (ParaName == "AA_SpiralRough_Spiral_Steps_XY_A")
+        AA_SpiralRough_Spiral_Steps_XY_A = cmd.toInt();
+      else if (ParaName == "AA_SpiralFine_Spiral_Steps_XY_A")
+        AA_SpiralFine_Spiral_Steps_XY_A = cmd.toInt();
+      else if (ParaName == "AA_SpiralFine_Scan_Steps_X_A")
+        AA_SpiralFine_Scan_Steps_X_A = cmd.toInt();
+      else if (ParaName == "AA_SpiralFine_Scan_Steps_X_B")
+        AA_SpiralFine_Scan_Steps_X_B = cmd.toInt();
+      else if (ParaName == "AA_SpiralFine_Scan_Steps_X_C")
+        AA_SpiralFine_Scan_Steps_X_C = cmd.toInt();
+      else if (ParaName == "AA_SpiralFine_Scan_Steps_X_D")
+        AA_SpiralFine_Scan_Steps_X_D = cmd.toInt();
+      else if (ParaName == "AA_SpiralFine_Scan_Steps_Y_A")
+        AA_SpiralFine_Scan_Steps_Y_A = cmd.toInt();
+      else if (ParaName == "AA_SpiralFine_Scan_Steps_Y_B")
+        AA_SpiralFine_Scan_Steps_Y_B = cmd.toInt();
+      else if (ParaName == "AA_SpiralFine_Scan_Steps_Y_C")
+        AA_SpiralFine_Scan_Steps_Y_C = cmd.toInt();
+      else if (ParaName == "AA_SpiralFine_Scan_Steps_Y_D")
+        AA_SpiralFine_Scan_Steps_Y_D = cmd.toInt();
+      else if (ParaName == "AA_SpiralFine_Scan_Steps_Y_E")
+        AA_SpiralFine_Scan_Steps_Y_E = cmd.toInt();
+      else if (ParaName == "AA_ScanRough_Feed_Steps_Z_A")
+        AA_ScanRough_Feed_Steps_Z_A = cmd.toInt();
+      else if (ParaName == "AA_ScanRough_Feed_Steps_Z_B")
+        AA_ScanRough_Feed_Steps_Z_B = cmd.toInt();
+      else if (ParaName == "AA_ScanRough_Feed_Ratio_Z_A")
+        AA_ScanRough_Feed_Ratio_Z_A = cmd.toDouble();
+      else if (ParaName == "AA_ScanRough_Feed_Ratio_Z_B")
+        AA_ScanRough_Feed_Ratio_Z_B = cmd.toDouble();
+      else if (ParaName == "AA_ScanRough_Feed_Ratio_Z_C")
+        AA_ScanRough_Feed_Ratio_Z_C = cmd.toDouble();
+      else if (ParaName == "AA_ScanRough_Feed_Ratio_Z_D")
+        AA_ScanRough_Feed_Ratio_Z_D = cmd.toDouble();
+
+      else if (ParaName == "AA_ScanRough_Scan_Steps_Y_A")
+        AA_ScanRough_Scan_Steps_Y_A = cmd.toInt();
+      else if (ParaName == "AA_ScanRough_Scan_Steps_Y_B")
+        AA_ScanRough_Scan_Steps_Y_B = cmd.toInt();
+      else if (ParaName == "AA_ScanRough_Scan_Steps_Y_C")
+        AA_ScanRough_Scan_Steps_Y_C = cmd.toInt();
+      else if (ParaName == "AA_ScanRough_Scan_Steps_Y_D")
+        AA_ScanRough_Scan_Steps_Y_D = cmd.toInt();
+      else if (ParaName == "AA_ScanRough_Scan_Steps_X_A")
+        AA_ScanRough_Scan_Steps_X_A = cmd.toInt();
+      else if (ParaName == "AA_ScanRough_Scan_Steps_X_B")
+        AA_ScanRough_Scan_Steps_X_B = cmd.toInt();
+      else if (ParaName == "AA_ScanRough_Scan_Steps_X_C")
+        AA_ScanRough_Scan_Steps_X_C = cmd.toInt();
+      else if (ParaName == "AA_ScanRough_Scan_Steps_X_D")
+        AA_ScanRough_Scan_Steps_X_D = cmd.toInt();
+      else if (ParaName == "AA_ScanRough_Scan_Steps_X_E")
+        AA_ScanRough_Scan_Steps_X_E = cmd.toInt();
+      else if (ParaName == "AA_ScanFine_Scan_Steps_Z_A")
+        AA_ScanFine_Scan_Steps_Z_A = cmd.toInt();
+      else if (ParaName == "AA_ScanFine_Scan_Steps_Y_A")
+        AA_ScanFine_Scan_Steps_Y_A = cmd.toInt();
+      else if (ParaName == "AA_ScanFine_Scan_Steps_X_A")
+        AA_ScanFine_Scan_Steps_X_A = cmd.toInt();
+      else if (ParaName == "AA_ScanFinal_Scan_Steps_Z_A")
+        AA_ScanFinal_Scan_Steps_Z_A = cmd.toInt();
+      else if (ParaName == "AA_ScanFinal_Scan_Steps_Y_A")
+        AA_ScanFinal_Scan_Steps_Y_A = cmd.toInt();
+      else if (ParaName == "AA_ScanFinal_Scan_Steps_X_A")
+        AA_ScanFinal_Scan_Steps_X_A = cmd.toInt();
+
+      else if (ParaName == "AA_ScanFinal_Scan_Delay_X_A")
+        AA_ScanFinal_Scan_Delay_X_A = cmd.toInt();
+    }
+
+    //Set BackLash Command
+    else if (Contains(cmd, "_BL:"))
+    {
+      if (Contains(cmd, "X"))
+      {
+        cmd.remove(0, 5);
+
+        X_backlash = cmd.toInt();
+
+        CleanEEPROM(24, 8); //Clean EEPROM(int startPosition, int datalength)
+
+        WriteInfoEEPROM(String(cmd), 24); //(data, start_position)  // Write Data to EEPROM
+
+        Serial.println("Set X BackLash: " + String(String(cmd)));
+
+        // Reading Data from EEPROM
+        Serial.println("X BackLash in eeprom: " + ReadInfoEEPROM(24, 8)); //(start_position, data_length)
+
+        X_backlash = ReadInfoEEPROM(24, 8).toInt();
+      }
+
+      else if (Contains(cmd, "Y"))
+      {
+        cmd.remove(0, 5);
+
+        Y_backlash = cmd.toInt();
+
+        CleanEEPROM(32, 8); //Clean EEPROM(int startPosition, int datalength)
+
+        WriteInfoEEPROM(String(cmd), 32); //(data, start_position)  // Write Data to EEPROM
+
+        Serial.println("Set Y BackLash: " + String(String(cmd)));
+
+        // Reading Data from EEPROM
+        Serial.println("Y BackLash in eeprom: " + ReadInfoEEPROM(32, 8)); //(start_position, data_length)
+
+        Y_backlash = ReadInfoEEPROM(32, 8).toInt();
+      }
+
+      else if (Contains(cmd, "Z"))
+      {
+        cmd.remove(0, 5);
+
+        Z_backlash = cmd.toInt();
+
+        CleanEEPROM(40, 8); //Clean EEPROM(int startPosition, int datalength)
+
+        WriteInfoEEPROM(String(cmd), 40); //(data, start_position)  // Write Data to EEPROM
+
+        Serial.println("Set Z BackLash: " + String(String(cmd)));
+
+        // Reading Data from EEPROM
+        Serial.println("Z BackLash in eeprom: " + ReadInfoEEPROM(40, 8)); //(start_position, data_length)
+
+        Z_backlash = ReadInfoEEPROM(40, 8).toInt();
+      }
+    }
+
+    //eStep Command
+    else if (Contains(cmd, "_eStep:"))
+    {
+      if (Contains(cmd, "X"))
+      {
+        cmd.remove(0, 8);
+        X_rotator_steps = cmd.toInt();
+      }
+      else if (Contains(cmd, "Y"))
+      {
+        cmd.remove(0, 8);
+        Y_rotator_steps = cmd.toInt();
+      }
+      else if (Contains(cmd, "Z"))
+      {
+        cmd.remove(0, 8);
+        Z_rotator_steps = cmd.toInt();
+      }
+    }
+
+    //Set Scan Steps Command
+    else if (Contains(cmd, "_ScanSTP:"))
+    {
+      if (Contains(cmd, "X"))
+      {
+        cmd.remove(0, 10);
+
+        X_ScanSTP = cmd.toInt();
+
+        CleanEEPROM(48, 8);                                         //Clean EEPROM(int startPosition, int datalength)
+        WriteInfoEEPROM(String(cmd), 48);                           //(data, start_position)  // Write Data to EEPROM
+        Serial.println("Save in eeprom: " + ReadInfoEEPROM(48, 8)); //(start_position, data_length)
+
+        Serial.println("Set X Scan Step: " + String(X_ScanSTP));
+      }
+      else if (Contains(cmd, "Y"))
+      {
+        cmd.remove(0, 10);
+        Y_ScanSTP = cmd.toInt();
+
+        CleanEEPROM(56, 8);                                         //Clean EEPROM(int startPosition, int datalength)
+        WriteInfoEEPROM(String(cmd), 56);                           //(data, start_position)  // Write Data to EEPROM
+        Serial.println("Save in eeprom: " + ReadInfoEEPROM(56, 8)); //(start_position, data_length)
+
+        Serial.println("Set Y Scan Step: " + String(String(cmd)));
+      }
+      else if (Contains(cmd, "Z"))
+      {
+        cmd.remove(0, 10);
+        Z_ScanSTP = cmd.toInt();
+
+        CleanEEPROM(64, 8);                                         //Clean EEPROM(int startPosition, int datalength)
+        WriteInfoEEPROM(String(cmd), 64);                           //(data, start_position)  // Write Data to EEPROM
+        Serial.println("Save in eeprom: " + ReadInfoEEPROM(64, 8)); //(start_position, data_length)
+
+        Serial.println("Set Z Scan Step: " + String(String(cmd)));
+      }
+    }
+
+    //Set Ref Command
+    else if (Contains(cmd, "Set_Ref:"))
+    {
+      cmd.remove(0, 8);
+
+      CleanEEPROM(0, 8);               //Clean EEPROM(int startPosition, int datalength)
+      WriteInfoEEPROM(String(cmd), 0); //(data, start_position)  // Write Data to EEPROM
+      EEPROM.commit();
+
+      Serial.println("Update Ref Value : " + String(cmd));
+
+      String eepromString = ReadInfoEEPROM(0, 8); //(int start_position, int data_length)
+
+      Serial.println("PD ref: " + eepromString); //(start_position, data_length)  // Reading Data from EEPROM
+
+      ref_Dac = eepromString.toDouble();
+      ref_IL = ILConverter(ref_Dac);
+    }
+
+    //Set Manual Control Motor Speed
+    else if (Contains(cmd, "Set_Motor_Speed_"))
+    {
+      cmd.remove(0, 16);
+
+      if (Contains(cmd, "X"))
+      {
+        cmd.remove(0, 2);
+        delayBetweenStep_X = cmd.toInt();
+      }
+      else if (Contains(cmd, "Y"))
+      {
+        cmd.remove(0, 2);
+        delayBetweenStep_Y = cmd.toInt();
+      }
+      else if (Contains(cmd, "Z"))
+      {
+        cmd.remove(0, 2);
+        delayBetweenStep_Z = cmd.toInt();
+      }
+
+      Serial.println("Set Manual Control Motor Speed:" + cmd);
+    }
+
+    //Set PD average points
+    else if (Contains(cmd, "Set_PD_average_Points:"))
+    {
+      cmd.remove(0, 22);
+      Get_PD_Points = cmd.toInt();
+
+      Serial.println("Set PD avg points:" + String(Get_PD_Points));
+    }
+
+    //Command No.
+    else if (Contains(cmd, "cmd"))
+    {
+      cmd.remove(0, 3);
+      cmd_No = cmd.toInt();
+      delay(10);
+
+      //          cmd_No = 4;  //Auto-Align
+      //          cmd_No = 5;   //Fine scan
+      //          cmd_No = 6;   //Auto curing
+      //          cmd_No = 7;  //To re-load position
+      //          cmd_No = 8;  //To Home
+      //          cmd_No = 9;  //To Home
+      //          cmd_No = 10;  //To Home
+      //          cmd_No = 16;  //Set reLoad
+      //          cmd_No = 17;  //Set home
+      //          cmd_No = 18;  //Set Z target
+      //          cmd_No = 19;  //Get ref
+      //          cmd_No = 20;  //Spiral
+      //          cmd_No = 21;  //Keep print IL to PC
+      //          cmd_No = 22;  //Scan X
+      //          cmd_No = 23;  //Scan Y
+      //          cmd_No = 24;  //Scan Z
+    }
+
+    //Action : Reply
+    if (true)
+    {
+    }
+  }
+  else if (ButtonSelected >= 0)
+  {
+    //Keyboard No. to Cmd Set No.
+    switch (ButtonSelected)
+    {
+    case 7:
+      cmd_No = 1;
+      break;
+
+    case 8:
+      cmd_No = 2;
+      break;
+
+    case 9:
+      cmd_No = 3;
+      break;
+
+    default:
+      cmd_No = ButtonSelected;
+      break;
+    }
+  }
+
+  return cmd_No;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+int Function_Excecutation(String cmd, int cmd_No)
+{
+  //Function Execution
+  // String cmd = "";
+
+  if (cmd_No != 0)
+  {
+    // Serial.println("Btn:" + String(ButtonSelected) + ", CMD:" + String(cmd_No));
+
+    //Functions: Alignment
+    if (cmd_No <= 100)
+    {
+      switch (cmd_No)
+      {
+        //Functions: Auto Align
+      case 1: /* Auto Align */
+        if (true)
+        {
+          digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+          delay(3);
+
+          AutoAlign();
+
+          digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
+          Serial.println("Auto Align End");
+          MotorCC = true;
+
+          StopValue = 0; //0 dB
+
+          isLCD = true;
+          LCD_Update_Mode = 0;
+          LCD_PageNow = 100;
+        }
+        cmd_No = 0;
+        break;
+
+        //Functions: Fine Scan
+      case 2: /* Fine Scan */
+        if (!btn_isTrigger)
+        {
+          StopValue = 0; //0 dB
+
+          isLCD = true;
+          LCD_Update_Mode = 1;
+
+          digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+
+          CMDOutput("AS");
+          // Serial.println("Auto-Align Start");
+
+          Scan_AllRange_TwoWay(2, 8, 125, AA_ScanFinal_Scan_Delay_X_A, 0, 100, StopValue, 500, 2, "Z Scan, Trip "); //steps:150
+          // Scan_AllRange_TwoWay(2, 8, 60, 60, 0, 100, StopValue, 500, 2, "Z Scan, Trip "); //steps:150
+          CMDOutput("%:");
+
+          if (isStop)
+            true;
+
+          CMDOutput("AS");
+          // Serial.println("Auto-Align Start");
+
+          Scan_AllRange_TwoWay(1, 7, 20, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip "); //steps:350
+          // Scan_AllRange_TwoWay(1, 7, 10, 60, 0, 120, StopValue, 500, 2, "Y Scan, Trip "); //steps:350
+          CMDOutput("%:");
+
+          if (isStop)
+            true;
+
+          CMDOutput("AS");
+          // Serial.println("Auto-Align Start");
+
+          Scan_AllRange_TwoWay(0, 8, 22, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "X Scan, Trip "); //steps:350
+          // Scan_AllRange_TwoWay(0, 8, 10, 60, 0, 120, StopValue, 500, 2, "X Scan, Trip "); //steps:350
+          CMDOutput("%:");
+
+          if (isStop)
+            true;
+
+          digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
+
+          Serial.println("Auto Align End");
+
+          isLCD = true;
+          LCD_Update_Mode = 0;
+          LCD_PageNow = 100;
+        }
+        cmd_No = 0;
+        break;
+
+      //Functions: Auto Curing
+      case 3: /* Auto Curing */
+        if (!btn_isTrigger)
+        {
+          btn_isTrigger = false;
+
+          isILStable = false;
+
+          double IL_stable_count = 0;
+          double Acceptable_Delta_IL = 12; //0.8
+          Q_Time = 0;
+
+          time_curing_0 = millis();
+          time_curing_1 = time_curing_0;
+          time_curing_2 = time_curing_1;
+
+          digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+          delay(5);
+
+          AutoCuring_Best_IL = Cal_PD_Input_IL(Get_PD_Points);
+
+          StopValue = AutoCuring_Best_IL; //0 dB
+
+          Z_ScanSTP = 125; //180
+
+          Serial.println("Auto-Curing");
+          CMDOutput("AQ"); // Auto_Curing Start
+
+          while (true)
+          {
+            PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+            Q_Time = ((millis() - time_curing_0) / 1000);
+            Serial.println("Curing Time:" + String(Q_Time) + " s");
+            Serial.println("Threshold: " + String(AutoCuring_Best_IL - Acceptable_Delta_IL) + ", Now: " + String(PD_Now));
+            Serial.println("PD Power:" + String(PD_Now)); //dB
+
+            digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+            delay(5);
+
+            if (Serial.available())
+              cmd = Serial.readString();
+
+            cmd_No = Function_Classification(cmd, ButtonSelected);
+
+            isLCD = true;
+            LCD_Update_Mode = 2;
+            delay(1000); //default: 700
+
+            if (isStop)
+              break;
+
+            //Q State
+            if (true)
+            {
+              if (Q_Time <= 540)
+              {
+                Q_State = 1;
+              }
+              else if (Q_Time > 540 && Q_Time <= 600)
+              {
+                Q_State = 2;
+              }
+              else if (Q_Time > 600 && Q_Time <= 700)
+              {
+                Q_State = 3;
+              }
+              else if (Q_Time > 700)
+              {
+                Q_State = 4;
+              }
+            }
+
+            //Q Stop Conditions
+            if (true)
+            {
+              //IL Stable Time ,  70 secs,  curing time threshold , 12.5 mins
+              if (time_curing_2 - time_curing_1 > 70000 && Q_Time >= 800) // 800
+              {
+                Serial.println("IL Stable - Stop Auto Curing");
+                isStop = true;
+                break;
+              }
+              //Total curing time , 14 mins, 840s
+              else if (Q_Time > 840)
+              {
+                Serial.println("Over Limit Curing Time - Stop Auto Curing");
+                isStop = true;
+                break;
+              }
+
+              if (isILStable && (Q_Time) >= 800) //800
+              {
+                Serial.println("IL Stable in Scan - Stop Auto Curing");
+                break;
+              }
+            }
+
+            if (isStop)
+              break;
+
+            //Q scan conditions
+            if (true)
+            {
+              if (Q_State == 2)
+              {
+                Z_ScanSTP = 125; //60
+                Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
+              }
+              else if (Q_State == 3)
+              {
+                Z_ScanSTP = 70; //45
+                Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
+              }
+              else if (Q_State == 4)
+              {
+                Z_ScanSTP = 50; //45
+                Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
+              }
+
+              if (Q_Time > 540)
+              {
+                Acceptable_Delta_IL = 0.25; // Target IL changed
+                Serial.println("Update Scan Condition: " + String(Acceptable_Delta_IL));
+              }
+            }
+
+            PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+
+            if (PD_Now >= (AutoCuring_Best_IL - (Acceptable_Delta_IL + 0.15)))
+            {
+              time_curing_2 = millis();
+              continue;
+            }
+            else
+            {
+              CMDOutput("AS");
+              Serial.println("Auto-Align Start");
+
+              time_curing_3 = millis();
+              Q_Time = (time_curing_3 - time_curing_0) / 1000;
+              Serial.println("Auto-Curing Time: " + String(Q_Time) + " s");
+
+              //Q Scan
+              if (true)
+              {
+                PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+
+                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
+                {
+                  Fine_Scan(1, false); //Q Scan X
+
+                  Serial.println("X PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
+
+                  if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
+                    Fine_Scan(1, false); //Q Scan X
+                }
+
+                if (isStop)
+                  break;
+
+                PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+                Serial.println("Q_State: " + String(Q_State));
+
+                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL) || Q_State == 1)
+                {
+                  Fine_Scan(2, false); //Q Scan Y
+
+                  Serial.println("Y PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
+
+                  if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
+                    Fine_Scan(2, false); //Q Scan Y
+                }
+
+                if (isStop)
+                  break;
+
+                PD_Before = Cal_PD_Input_IL(Get_PD_Points);
+
+                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
+                {
+                  //Q Scan Z
+                  Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 70, 0, 120, StopValue, 500, 2, "Z Scan, Trip ");
+                  CMDOutput("%:");
+                }
+
+                if (isStop)
+                  break;
+              }
+
+              PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+              Serial.println("Q_State: " + String(Q_State));
+
+              if (abs(PD_Before - PD_Now) < 0.3 && (time_curing_3 - time_curing_0) > 750000)
+              {
+                IL_stable_count++;
+
+                if (IL_stable_count > 4)
+                {
+                  Serial.println("IL stable to break");
+                  break;
+                }
+              }
+
+              time_curing_1 = millis();
+              time_curing_2 = time_curing_1;
+            }
+          }
+
+          time_curing_3 = millis();
+          Serial.println("Total Auto-Curing Time: " + String((time_curing_3 - time_curing_0) / 1000) + " s");
+
+          StopValue = Target_IL;
+          digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
+
+          String eepromString = ReadInfoEEPROM(40, 8);                              //Reading z backlash from EEPROM
+          Serial.println("Reset Z backlash from EEPROM: " + ReadInfoEEPROM(40, 8)); //(start_position, data_length)
+          Z_backlash = eepromString.toInt();
+
+          isLCD = true;
+          LCD_Update_Mode = 100;
+          Serial.println("LCD Re-Start");
+
+          Serial.println("Auto Q End");
+        }
+        cmd_No = 0;
+        break;
+
+      case 18: /* Set Target IL */
+        if (true)
+        {
+          StopValue = Target_IL;
+
+          Serial.println("Update Target IL : " + WR_EEPROM(72, String(Target_IL)));
+        }
+        cmd_No = 0;
+        break;
+
+      case 19: /* Get Ref */
+        if (true)
+        {
+          digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+          delay(3);
+
+          averagePDInput = 0;
+          for (int i = 0; i < 500; i++)
+            averagePDInput += analogRead(34);
+
+          averagePDInput = (averagePDInput / 500);
+
+          ref_Dac = averagePDInput;
+          ref_IL = ILConverter(averagePDInput);
+
+          CleanEEPROM(0, 8); //Clean EEPROM(int startPosition, int datalength)
+
+          WriteInfoEEPROM(String(averagePDInput), 0); //Write Data to EEPROM (data, start_position)
+          EEPROM.commit();
+
+          Serial.println("Update Ref Value : " + String(averagePDInput));
+
+          Serial.println("ref_Dac: " + ReadInfoEEPROM(0, 8) + ", ref_IL: " + String(ref_IL)); //Reading Data from EEPROM(start_position, data_length)
+
+          digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
+          delay(3);
+        }
+
+        cmd_No = 0;
+        break;
+
+      case 21:
+        isGetPower = true;
+        // GetPower_Mode = 1;
+
+        Serial.println("Cmd: Get IL On");
+        digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+
+        cmd_No = 0;
+        break;
+
+      case 22:
+        isGetPower = false;
+
+        Serial.println("Cmd: Get Power Off");
+        digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
+
+        cmd_No = 0;
+        break;
+
+      case 23:
+        GetPower_Mode = 1;
+        Serial.println("Cmd: Get Power Mode: IL(dB)");
+        cmd_No = 0;
+        break;
+
+      case 24:
+        GetPower_Mode = 2;
+        Serial.println("Cmd: Get Power Mode: Dac");
+        cmd_No = 0;
+        break;
+
+      case 25:
+        GetPower_Mode = 3;
+        Serial.println("Cmd: Get Power Mode: Row IL(dBm)");
+        cmd_No = 0;
+        break;
+
+      case 26:
+        GetPower_Mode = 4;
+        Serial.println("Cmd: Get Power Mode: Row Dac");
+        cmd_No = 0;
+        break;
+
+      case 27:
+        Serial.println(String(Cal_PD_Input_Row_Dac(Get_PD_Points)));
+        cmd_No = 0;
+        break;
+
+      case 31:
+        isLCD = true;
+        LCD_Update_Mode = 100;
+        Serial.println("LCD Re-Start");
+        cmd_No = 0;
+        break;
+      }
+    }
+
+    //Functions: Motion
+    if (cmd_No > 100)
+      switch (cmd_No)
+      {
+        // Function: Cont-------------------------------------------------------------------------
+        //Z feed - cont
+      case 101:
+        while (true)
+        {
+          MotorCC = MotorCC_Z;
+          Move_Motor_Cont(Z_DIR_Pin, Z_STP_Pin, false, 400, delayBetweenStep_Z);
+          MotorCC_Z = false;
+
+          // DataOutput();
+
+          if (cmd == "")
+          {
+            if (digitalRead(R_3))
+              break;
+          }
+          else
+          {
+            if (Serial.available())
+            {
+              String msg = Serial.readString();
+              if (Contains(msg, "0"))
+                break;
+            }
+          }
+        }
+        DataOutput();
+        // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
+        cmd_No = 0;
+        break;
+      case 103:
+        while (true)
+        {
+          MotorCC = MotorCC_Z;
+          Move_Motor_Cont(Z_DIR_Pin, Z_STP_Pin, true, 400, delayBetweenStep_Z);
+          MotorCC_Z = true;
+
+          // DataOutput();
+
+          if (cmd == "")
+          {
+            if (digitalRead(R_3))
+              break;
+          }
+          else
+          {
+            if (Serial.available())
+            {
+              String msg = Serial.readString();
+              if (Contains(msg, "0"))
+                break;
+            }
+          }
+        }
+        DataOutput();
+        // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
+        cmd_No = 0;
+        break;
+
+        //X feed - cont
+      case 102:
+
+        while (true)
+        {
+          MotorCC = MotorCC_X;
+          Move_Motor_Cont(X_DIR_Pin, X_STP_Pin, false, 400, delayBetweenStep_X);
+          MotorCC_X = false;
+
+          // DataOutput();
+
+          if (cmd == "")
+          {
+            if (digitalRead(R_3))
+              break;
+          }
+          else
+          {
+            if (Serial.available())
+            {
+              String msg = Serial.readString();
+              if (Contains(msg, "0"))
+                break;
+            }
+          }
+        }
+        DataOutput();
+        // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
+        cmd_No = 0;
+        break;
+        //X+ - cont
+      case 105:
+
+        while (true)
+        {
+          MotorCC = MotorCC_X;
+          Move_Motor_Cont(X_DIR_Pin, X_STP_Pin, true, 400, delayBetweenStep_X);
+          MotorCC_X = true;
+
+          // DataOutput();
+
+          if (cmd == "")
+          {
+            if (digitalRead(R_2))
+              break;
+          }
+          else
+          {
+            if (Serial.available())
+            {
+              String msg = Serial.readString();
+              if (Contains(msg, "0"))
+                break;
+            }
+          }
+        }
+        DataOutput();
+        // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
+        cmd_No = 0;
+        break;
+
+        //Y feed - cont
+      case 106:
+
+        while (true)
+        {
+          MotorCC = MotorCC_Y;
+          Move_Motor_Cont(Y_DIR_Pin, Y_STP_Pin, false, 400, delayBetweenStep_Y);
+          MotorCC_Y = false;
+
+          // DataOutput();
+
+          if (cmd == "")
+          {
+            if (digitalRead(R_2))
+              break;
+          }
+          else
+          {
+            if (Serial.available())
+            {
+              String msg = Serial.readString();
+              if (Contains(msg, "0"))
+                break;
+            }
+          }
+        }
+        DataOutput();
+        // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
+        cmd_No = 0;
+        break;
+
+      case 104:
+
+        while (true)
+        {
+          MotorCC = MotorCC_Y;
+          Move_Motor_Cont(Y_DIR_Pin, Y_STP_Pin, true, 400, delayBetweenStep_Y);
+          MotorCC_Y = true;
+
+          // DataOutput();
+
+          if (cmd == "")
+          {
+            if (digitalRead(R_2))
+              break;
+          }
+          else
+          {
+            if (Serial.available())
+            {
+              String msg = Serial.readString();
+              if (Contains(msg, "0"))
+                break;
+            }
+          }
+        }
+
+        DataOutput();
+        // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
+        cmd_No = 0;
+        break;
+
+        // Function: Jog-------------------------------------------------------------------------
+
+      //X+ feed - jog
+      case 107:
+        MotorCC = MotorCC_X;
+        Move_Motor_Cont(X_DIR_Pin, X_STP_Pin, false, 400, delayBetweenStep_X);
+        MotorCC_X = true;
+
+        break;
+
+        //X- feed - jog
+      case 108:
+        MotorCC = MotorCC_X;
+        Move_Motor_Cont(X_DIR_Pin, X_STP_Pin, true, 400, delayBetweenStep_X);
+        MotorCC_X = false;
+
+        break;
+
+      //Y+ feed - jog
+      case 109:
+        MotorCC = MotorCC_Y;
+        Move_Motor_Cont(Y_DIR_Pin, Y_STP_Pin, false, 400, delayBetweenStep_Y);
+        MotorCC_Y = true;
+        break;
+
+      //Y- feed - jog
+      case 110:
+        MotorCC = MotorCC_Y;
+        Move_Motor_Cont(Y_DIR_Pin, Y_STP_Pin, true, 400, delayBetweenStep_Y);
+        MotorCC_Y = false;
+        break;
+
+        //Z+ feed - jog
+      case 111:
+        MotorCC = MotorCC_Z;
+        Move_Motor_Cont(Z_DIR_Pin, Z_STP_Pin, true, 400, delayBetweenStep_Z);
+        MotorCC_Z = true;
+        break;
+
+        //Z- feed - jog
+      case 112:
+        MotorCC = MotorCC_Z;
+        Move_Motor_Cont(Z_DIR_Pin, Z_STP_Pin, false, 400, delayBetweenStep_Z);
+        MotorCC_Z = false;
+        break;
+
+        //Go Home
+      case 130:
+        Move_Motor_abs_all(0, 0, 0);
+        break;
+      }
+  }
+
+  return cmd_No;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void BLE_Function(String cmd)
+{
+  //Bluetooth : Receive Data
+  // if (cmd == "" && cmd_No == 0)
+  // {
+  //   // Serial.println("BLE mode");
+  //   if (BT.connected(30))
+  //   {
+  //     isMsgShow = true;
+
+  //     if (BT.available())
+  //     {
+  //       String BTdata = BT.readString();
+
+  //       BT.println(BTdata);
+  //       Serial.println(BTdata);
+
+  //       if (BTdata == "Z+")
+  //       {
+  //         Move_Motor(Z_DIR_Pin, Z_STP_Pin, true, 500, 8, 150, true);
+  //       }
+  //       else if (BTdata == "Z-")
+  //       {
+  //         Move_Motor(Z_DIR_Pin, Z_STP_Pin, true, 500, 8, 150, true);
+  //       }
+  //     }
+  //   }
+  // }
+
+  // if (ButtonSelected < 0 && cmd == "")
+  // {
+  //   cmd_No = 0;
+  // }
+}
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
