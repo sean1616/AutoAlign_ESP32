@@ -125,6 +125,8 @@ int AA_ScanFinal_Scan_Steps_Z_A = 125;
 int AA_ScanFinal_Scan_Steps_Y_A = 20;
 int AA_ScanFinal_Scan_Steps_X_A = 20;
 
+int AQ_Scan_Compensation_Steps_Z_A = 15;
+
 int AA_ScanFinal_Scan_Delay_X_A = 0;
 
 double averagePDInput = 0;
@@ -1203,7 +1205,7 @@ bool Fine_Scan(int axis, bool Trip2Stop)
 
       //        X_ScanSTP = 12;
       PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-      
+
       CMDOutput("AS");
       msg = Region + ", X Scan, Rount " + String(1) + ", Trip ";
       K_OK = Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan, Trip ");
@@ -1236,7 +1238,7 @@ bool Fine_Scan(int axis, bool Trip2Stop)
         K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 500, 2, "Y Scan, Trip ");
         CMDOutput("%:");
       }
-      
+
       break;
 
     case 3:
@@ -1322,18 +1324,18 @@ void AutoAlign()
   CMDOutput("AS"); //Align Start
   Serial.println("... Spiral ...");
 
-    //Spiral - Rough - 1
+  //Spiral - Rough - 1
   int matrix_level = 10;
   CMDOutput("^X");
   CMDOutput("R:" + String(M_Level * 2 + 1));
   CMDOutput("C:" + String(M_Level * 2 + 1));
 
-  delayBetweenStep = 15;  //default:25
+  delayBetweenStep = 15;                           //default:25
   MinMotroStep = AA_SpiralRough_Spiral_Steps_XY_A; //2000
   Region = "Sprial(Rough)";
   AutoAlign_Spiral(matrix_level, -42, 0); //Input : (Sprial Level, Threshold, stable)  Threshold:123
   CMDOutput("X^");
- 
+
   DataOutput();
 
   PD_Now = Cal_PD_Input_IL(Get_PD_Points);
@@ -1876,7 +1878,7 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
         timer_2 = millis();
         ts = (timer_2 - timer_1) * 0.001;
         CMDOutput("t:" + String(ts, 2));
-        
+
         return true;
       }
     }
@@ -2102,7 +2104,7 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
     Move_Motor_abs(1, PD_Best_Pos_Abs[1]);
 
     delay(200);
-   
+
     double finalIL = Cal_PD_Input_IL(Get_PD_Points);
     Serial.println("Final IL : " + String(finalIL));
 
@@ -2812,6 +2814,10 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
     Serial.println("Best in Trip 2 : " + String(Pos_Best_Trip2));
 
+    Pos_Best_Trip2 = Pos_Best_Trip2 - AQ_Scan_Compensation_Steps_Z_A;
+
+    Serial.println("Best in Trip 2 (Compensation) : " + String(Pos_Best_Trip2));
+
     PD_Best = IL_Best_Trip2;
 
     Move_Motor_abs(XYZ, Pos_Ini_Trip2); //Jump to trip 2 start position
@@ -2843,13 +2849,16 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   {
     Serial.println("Best in Trip 1 : " + String(Pos_Best_Trip1));
 
+    Pos_Best_Trip1 = Pos_Best_Trip1 - AQ_Scan_Compensation_Steps_Z_A;
+
+    Serial.println("Best in Trip 1 (Compensation) : " + String(Pos_Best_Trip1));
+
     PD_Best = IL_Best_Trip1;
     deltaPos = abs(Pos_Best_Trip1 - Get_Position(XYZ));
 
     if (deltaPos < backlash)
     {
       Serial.println("Jump Backlesh");
-      //      step(STP_Pin, (backlash * 1 - deltaPos), delayBetweenStep);
       step(STP_Pin, motorStep, delayBetweenStep);
       delay(150);
 
@@ -2919,8 +2928,6 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   timer_2 = millis();
   double ts = (timer_2 - timer_1) * 0.001;
   CMDOutput("t:" + String(ts, 2));
-  // Serial.print("TS:");
-  // Serial.println(ts, 2);
 
   return true;
 }
@@ -3660,6 +3667,9 @@ int Function_Classification(String cmd, int ButtonSelected)
       else if (ParaName == "AA_ScanFinal_Scan_Steps_X_A")
         AA_ScanFinal_Scan_Steps_X_A = cmd.toInt();
 
+      else if (ParaName == "AQ_Scan_Compensation_Steps_Z_A")
+        AQ_Scan_Compensation_Steps_Z_A = cmd.toInt();
+
       else if (ParaName == "AA_ScanFinal_Scan_Delay_X_A")
         AA_ScanFinal_Scan_Delay_X_A = cmd.toInt();
     }
@@ -3987,6 +3997,8 @@ int Function_Excecutation(String cmd, int cmd_No)
 
           isILStable = false;
 
+          ButtonSelected = -1;
+
           double IL_stable_count = 0;
           double Acceptable_Delta_IL = 12; //0.8
           Q_Time = 0;
@@ -4017,11 +4029,17 @@ int Function_Excecutation(String cmd, int cmd_No)
 
             digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
             delay(5);
-
+           
             if (Serial.available())
               cmd = Serial.readString();
 
+            // Serial.println("ButtonSelected: " + String(ButtonSelected));
+
+            // Serial.println("cmd in Q loop: " + String(cmd));
+
             cmd_No = Function_Classification(cmd, ButtonSelected);
+
+            cmd = "";  //Reset command from serial port
 
             isLCD = true;
             LCD_Update_Mode = 2;
@@ -4114,8 +4132,8 @@ int Function_Excecutation(String cmd, int cmd_No)
             }
             else
             {
-              CMDOutput("AS");
-              Serial.println("Auto-Align Start");
+              // CMDOutput("AS");
+              // Serial.println("Auto-Align Start");
 
               time_curing_3 = millis();
               Q_Time = (time_curing_3 - time_curing_0) / 1000;
@@ -4136,6 +4154,10 @@ int Function_Excecutation(String cmd, int cmd_No)
                     Fine_Scan(1, false); //Q Scan X
                 }
 
+                time_curing_3 = millis();
+                Q_Time = (time_curing_3 - time_curing_0) / 1000;
+                Serial.println("Auto-Curing Time: " + String(Q_Time) + " s");
+
                 if (isStop)
                   break;
 
@@ -4152,6 +4174,10 @@ int Function_Excecutation(String cmd, int cmd_No)
                     Fine_Scan(2, false); //Q Scan Y
                 }
 
+                time_curing_3 = millis();
+                Q_Time = (time_curing_3 - time_curing_0) / 1000;
+                Serial.println("Auto-Curing Time: " + String(Q_Time) + " s");
+
                 if (isStop)
                   break;
 
@@ -4160,6 +4186,7 @@ int Function_Excecutation(String cmd, int cmd_No)
                 if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
                 {
                   //Q Scan Z
+                  CMDOutput("AS");
                   Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 70, 0, 120, StopValue, 500, 2, "Z Scan, Trip ");
                   CMDOutput("%:");
                 }
