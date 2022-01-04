@@ -7,9 +7,18 @@
 // #include <U8glib.h>
 #include <U8g2lib.h>
 // #include <BluetoothSerial.h>
+// #include <WiFi.h>
+// #include <ESPAsyncWebServer.h>
 
 TaskHandle_t Task_1;
 #define WDT_TIMEOUT 3
+
+// Set your access point network credentials
+// const char* ssid = "ESP32-Access-Point";
+// const char* password = "123456789";
+
+// Create AsyncWebServer object on port 80
+// AsyncWebServer server(80);
 
 const byte X_STP_Pin = 15; //x軸 步進控制
 const byte X_DIR_Pin = 2;  //X軸 步進馬達方向控制
@@ -22,8 +31,8 @@ int ButtonSelected = 0;
 
 U8G2_ST7920_128X64_F_SW_SPI lcd(U8G2_R0, 5, 18, 19, U8X8_PIN_NONE); //data 4 , en, rs
 
-int LCD_Encoder_A_pin = 22;
-int LCD_Encoder_B_pin = 23;
+int LCD_Encoder_A_pin = 22; //22
+int LCD_Encoder_B_pin = 23; //23
 uint8_t LCD_Select_pin = 21;
 
 bool LCD_Encoder_State = false;
@@ -125,7 +134,7 @@ int AA_ScanFinal_Scan_Steps_Z_A = 125;
 int AA_ScanFinal_Scan_Steps_Y_A = 20;
 int AA_ScanFinal_Scan_Steps_X_A = 20;
 
-int AQ_Scan_Compensation_Steps_Z_A = 15;
+int AQ_Scan_Compensation_Steps_Z_A = 12;
 
 int AA_ScanFinal_Scan_Delay_X_A = 0;
 
@@ -156,12 +165,14 @@ bool isStop = false, isGetPower = true, isILStable = false;
 bool sprial_JumpToBest = true;
 int Q_State = 0;
 unsigned long Q_Time = 0;
+unsigned long LCD_Auto_Update_TimeCount = 0;
 byte GetPower_Mode = 1;
 
 // BluetoothSerial BT; //宣告藍芽物件，名稱為BT
 
 bool isWatchDog_Flag = false;
 bool isLCD = true;
+bool isLCD_Auto_Update = false;
 
 void Task_1_sendData(void *pvParameters)
 {
@@ -175,20 +186,13 @@ void Task_1_sendData(void *pvParameters)
     int idx = LCD_en_count / 2;
     // Serial.println(String(idx));
     updateUI(idx);
-    // updateUI_1(1);
-    lcd.clearBuffer();
 
-    // if (isWatchDog_Flag)
-    // {
-    //   Serial.print("Task1 running on core ");
-    //   Serial.println(xPortGetCoreID());
-    //   Serial.println("WathcDog Online");
-    //   isWatchDog_Flag = false;
-    // }
-    // else
-    // {
-    //   Serial.println("WathcDog Offline");
-    // }
+    if (isLCD_Auto_Update)
+      if (millis() - LCD_Auto_Update_TimeCount > 5000)
+      {
+        LCD_Auto_Update_TimeCount = millis();
+        isLCD = true;
+      }
 
     delay(150);
     // lcd.clearDisplay();
@@ -334,10 +338,6 @@ int KeyValueConverter()
     pinMode(R_2, OUTPUT);
     pinMode(R_3, OUTPUT);
 
-    // digitalWrite(R_1, false);
-    // digitalWrite(R_1, false);
-    // digitalWrite(R_1, false);
-
     delay(2);
 
     if (!digitalRead(C_1))
@@ -359,10 +359,6 @@ int KeyValueConverter()
     pinMode(C_2, OUTPUT);
     pinMode(C_3, OUTPUT);
 
-    // digitalWrite(C_1, false);
-    // digitalWrite(C_2, false);
-    // digitalWrite(C_3, false);
-
     delay(2);
   }
 
@@ -372,22 +368,22 @@ int KeyValueConverter()
     switch (keyValueSum)
     {
     case 1:
-      keyNo = 101;
+      keyNo = 101; /* Z- */
       break;
     case 2:
-      keyNo = 102;
+      keyNo = 102; /* X+ */
       break;
     case 3:
-      keyNo = 103;
+      keyNo = 103; /* Z+ */
       break;
     case 6:
-      keyNo = 104;
+      keyNo = 104; /* Y+ */
       break;
     case 7:
-      keyNo = 105;
+      keyNo = 105; /* X- */
       break;
     case 8:
-      keyNo = 106;
+      keyNo = 106; /* Y- */
       break;
     case 11:
       keyNo = 7;
@@ -404,11 +400,8 @@ int KeyValueConverter()
     }
 
     isKeyPressed = false;
-
-    // Serial.println("key:" + String(keyNo));
   }
 
-  // ButtonSelected = keyNo;
   return keyNo;
 }
 
@@ -580,8 +573,6 @@ String ReadInfoEEPROM(int start_position, int data_length)
   for (int i = 0; i < data_length; i++)
   {
     EEPROM_String += char(EEPROM.read(i + start_position));
-    //    Serial.print("Reading String : ");
-    //    Serial.println(char(EEPROM.read(i + start_position)));
   }
   EEPROM_String.trim();
   return EEPROM_String;
@@ -610,76 +601,86 @@ void EmergencyStop()
 {
   isStop = true;
 
-  isLCD = true;
-  LCD_Update_Mode = 0;
-  LCD_PageNow = 100;
+  // lcd.begin();
+  // lcd.clearBuffer();
+  // lcd.clearDisplay();
+  // lcd.clearWriteError();
+
+  // isLCD = true;
+  // LCD_Update_Mode = 0;
+  // LCD_PageNow = 100;
 
   Serial.println("EmergencyStop");
   isWatchDog_Flag = !isWatchDog_Flag;
   digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
+
+  delay(100);
 }
 
-#define MENU_ITEMS 6
+#define MENU_ITEMS 8
 char *UI_Menu_Items[MENU_ITEMS] =
     {"1. Status",
      "2. Target IL",
-     "3. Get Ref",
-     "4. Set X Speed",
-     "5. Set Y Speed",
-     "6. Set Z Speed"};
+     "3. StableDelay",
+     "4. Q Z-offset",
+     "5. X Speed",
+     "6. Y Speed",
+     "7. Z Speed",
+     "8. Get Ref"};
 
 uint8_t i, h, w, title_h, H;
+int Top_Item_Index = 0;
+int Bottom_Item_Index = 3;
+bool ui_YesNo_Selection = false;
 
 //Full Page method
 void updateUI(int pageIndex)
 {
   if (isLCD)
   {
+    if (pageIndex > MENU_ITEMS - 1)
+      pageIndex = MENU_ITEMS - 1;
     // Serial.println("LCD Update: " + String(pageIndex) + ", Mode: " + String(LCD_Update_Mode));
 
-    if (LCD_Update_Mode == 0 && pageIndex != LCD_PageNow)
+    Serial.println("LCD_PageNow:" + String(LCD_PageNow));
+    Serial.println("pageIndex:" + String(pageIndex));
+
+    if (LCD_Update_Mode == 0 && pageIndex != LCD_PageNow) /* Main */
     {
-      lcd.begin();
-      lcd.clearBuffer();
+      // lcd.begin();
+      // lcd.clearBuffer();
       lcd.clearDisplay();
-      lcd.clearWriteError();
-      delay(200);
+      // lcd.clearWriteError();
+      // delay(200);
 
       H = lcd.getHeight();
       h = lcd.getFontAscent() - lcd.getFontDescent() + 2;
       w = lcd.getWidth();
       title_h = h + 2;
 
-      // lcd.setCursor(3, h);
-      // lcd.print("Menu");
       int title_w = (w / 2) - (lcd.getStrWidth("Menu") / 2);
       lcd.drawStr(title_w, h - 1, "Menu");
 
       lcd.drawBox(0, h + 1, w, 1); //Seperate Line
 
-      int start_i = 0; //start_i<=2
-      if (pageIndex == 4)
-        start_i = 1;
-      else if (pageIndex == 5)
-        start_i = 2;
+      int deltaIndex = 0;
+      if (pageIndex > Bottom_Item_Index)
+      {
+        deltaIndex = abs(pageIndex - Bottom_Item_Index);
+        Top_Item_Index = Top_Item_Index + deltaIndex;
+        Bottom_Item_Index = Top_Item_Index + 3;
+      }
+      else if (pageIndex < Top_Item_Index)
+      {
+        deltaIndex = abs(Top_Item_Index - pageIndex);
+        Top_Item_Index = Top_Item_Index - deltaIndex;
+        Bottom_Item_Index = Top_Item_Index + 3;
+      }
 
-      lcd.drawFrame(0, (pageIndex - start_i) * h + 1 + title_h, w, h + 1); //Select Box
+      lcd.drawFrame(0, (pageIndex - Top_Item_Index) * h + 1 + title_h, w, h + 1); //Selection Box
 
       //Draw each item in UI_Menu_Items
-      for (i = start_i; i < start_i + 4; i++)
-      {
-        lcd.drawStr(3, title_h + ((i + 1 - start_i) * h) - 1, UI_Menu_Items[i]);
-
-        switch (i)
-        {
-        case 1:
-          lcd.drawStr(lcd.getWidth() - lcd.getStrWidth("-00.0") - 2, title_h + ((i + 1 - start_i) * h) - 1, String(Target_IL).c_str());
-          break;
-
-        default:
-          break;
-        }
-      }
+      Draw_ALL_UI_Items(LCD_Update_Mode, pageIndex);
 
       if (pageIndex < MENU_ITEMS - 1)
         lcd.drawTriangle(w / 2 - 2, H - 3, w / 2 + 3, H - 3, w / 2, H);
@@ -691,9 +692,9 @@ void updateUI(int pageIndex)
 
     else if (LCD_Update_Mode == 1) /* Auto-Aligning */
     {
-      lcd.clearBuffer();
+      // lcd.clearBuffer();
       lcd.clearDisplay();
-      lcd.clearWriteError();
+      // lcd.clearWriteError();
 
       h = lcd.getFontAscent() - lcd.getFontDescent() + 2;
       w = lcd.getWidth();
@@ -711,9 +712,9 @@ void updateUI(int pageIndex)
 
     else if (LCD_Update_Mode == 2) /* Auto-Curing */
     {
-      lcd.clearBuffer();
-      // lcd.clearDisplay();
-      lcd.clearWriteError();
+      // lcd.clearBuffer();
+      lcd.clearDisplay();
+      // lcd.clearWriteError();
 
       h = lcd.getFontAscent() - lcd.getFontDescent() + 2;
       w = lcd.getWidth();
@@ -733,46 +734,18 @@ void updateUI(int pageIndex)
       lcd.sendBuffer();
     }
 
-    else if (LCD_Update_Mode == 12)
+    else if (LCD_Update_Mode == 12) /* Target IL */
     {
       // lcd.clearBuffer();
       lcd.clearDisplay();
-
-      // H = lcd.getHeight();
-      // h = lcd.getFontAscent() - lcd.getFontDescent() + 2;
-      // w = lcd.getWidth();
-      // title_h = h + 2;
 
       int title_w = (w / 2) - (lcd.getStrWidth("Menu") / 2);
       lcd.drawStr(title_w, h - 1, "Menu");
 
       lcd.drawBox(0, h + 1, w, 1); //Seperate Line
 
-      pageIndex = 1;
-
-      int start_i = 0; //start_i<=2
-      if (pageIndex == 4)
-        start_i = 1;
-      else if (pageIndex == 5)
-        start_i = 2;
-
       //Draw each item in UI_Menu_Items
-      for (i = start_i; i < start_i + 4; i++)
-      {
-        lcd.drawStr(3, title_h + ((i + 1 - start_i) * h) - 1, UI_Menu_Items[i]);
-
-        //Item Value
-        switch (i)
-        {
-        case 1:
-          lcd.drawStr(lcd.getWidth() - lcd.getStrWidth("-00.0") - 2, title_h + ((i + 1 - start_i) * h) - 1, String(Target_IL).c_str());
-          lcd.drawFrame(lcd.getWidth() - lcd.getStrWidth("-00.0") - 4, (pageIndex - start_i) * h + 1 + title_h, lcd.getStrWidth("-00.0") + 4, h + 1); //Select Box
-          break;
-
-        default:
-          break;
-        }
-      }
+      Draw_ALL_UI_Items(LCD_Update_Mode, pageIndex);
 
       if (pageIndex < MENU_ITEMS - 1)
         lcd.drawTriangle(w / 2 - 2, H - 3, w / 2 + 3, H - 3, w / 2, H);
@@ -782,16 +755,70 @@ void updateUI(int pageIndex)
       lcd.sendBuffer();
     }
 
-    else if (LCD_Update_Mode == 100)
+    else if (LCD_Update_Mode == 14) /* Q Z-offset */
+    {
+      // lcd.clearBuffer();
+      lcd.clearDisplay();
+
+      int title_w = (w / 2) - (lcd.getStrWidth("Menu") / 2);
+      lcd.drawStr(title_w, h - 1, "Menu");
+
+      lcd.drawBox(0, h + 1, w, 1); //Seperate Line
+
+      //Draw each item in UI_Menu_Items
+      Draw_ALL_UI_Items(LCD_Update_Mode, pageIndex);
+
+      if (pageIndex < MENU_ITEMS - 1)
+        lcd.drawTriangle(w / 2 - 2, H - 3, w / 2 + 3, H - 3, w / 2, H);
+
+      LCD_PageNow = LCD_Update_Mode;
+
+      lcd.sendBuffer();
+    }
+
+    else if (LCD_Update_Mode == 99) /* Get Ref ? */
+    {
+      lcd.clearDisplay();
+
+      h = lcd.getFontAscent() - lcd.getFontDescent() + 2;
+      w = lcd.getWidth();
+
+      int H = lcd.getHeight();
+
+      int title_w = (w / 2) - (lcd.getStrWidth("Get Ref ?") / 2);
+      lcd.drawStr(title_w, H / 2 - (h / 2), "Get Ref ?");
+
+      lcd.drawBox(0, H / 2 - 1.8 * h, w, 1); //Seperate Line
+      lcd.drawBox(0, H / 2 + 1.8 * h, w, 1); //Seperate Line
+
+      int location_X_Yes = (w / 2) - 7 - lcd.getStrWidth("Yes");
+      int location_X_No = (w / 2) + 7;
+      int location_Y = H / 2 + 0.9 * h;
+
+      lcd.drawStr(location_X_Yes, location_Y, "Yes");
+      lcd.drawStr(location_X_No, location_Y, "No");
+
+      //Draw Selection box
+      if (ui_YesNo_Selection)
+        lcd.drawFrame(location_X_Yes - 2, location_Y - h + 1, lcd.getStrWidth("Yes") + 4, h + 2);
+      else
+        lcd.drawFrame(location_X_No - 2, location_Y - h + 1, lcd.getStrWidth("No") + 4, h + 2);
+
+      LCD_PageNow = LCD_Update_Mode;
+
+      lcd.sendBuffer();
+    }
+
+    else if (LCD_Update_Mode == 100) /*  */
     {
       // lcd.initDisplay();
 
       // delay(100);
 
-      lcd.begin();
-      lcd.clearBuffer();
+      // lcd.begin();
+      // lcd.clearBuffer();
       lcd.clearDisplay();
-      lcd.clearWriteError();
+      // lcd.clearWriteError();
       delay(200);
 
       H = lcd.getHeight();
@@ -838,45 +865,104 @@ void updateUI(int pageIndex)
       lcd.sendBuffer();
     }
 
-    // Serial.println("PageNow:" + String(LCD_PageNow));
-
     isLCD = false;
+
+    // LCD_en_count =
+  }
+}
+
+void Draw_ALL_UI_Items(int LCD_Update_Mode, int pageIndex)
+{
+  //Draw each item in UI_Menu_Items
+  for (i = Top_Item_Index; i < Top_Item_Index + 4; i++)
+  {
+    lcd.drawStr(3, title_h + ((i + 1 - Top_Item_Index) * h) - 1, UI_Menu_Items[i]);
+
+    //Item Content
+    switch (i)
+    {
+    case 1:
+      lcd.drawStr(lcd.getWidth() - lcd.getStrWidth("-00.0") - 2, title_h + ((i + 1 - Top_Item_Index) * h) - 1, String(Target_IL).c_str());
+      break;
+
+    case 3:
+      lcd.drawStr(lcd.getWidth() - lcd.getStrWidth("0000") - 2, title_h + ((i + 1 - Top_Item_Index) * h) - 1, String(AQ_Scan_Compensation_Steps_Z_A).c_str());
+      break;
+
+    default:
+      break;
+    }
+
+    //Selection Box
+    switch (LCD_Update_Mode)
+    {
+    case 12:
+      lcd.drawFrame(lcd.getWidth() - lcd.getStrWidth("-00.0") - 4, (pageIndex - Top_Item_Index) * h + 1 + title_h, lcd.getStrWidth("-00.0") + 4, h + 1);
+      break;
+
+    case 14:
+      lcd.drawFrame(lcd.getWidth() - lcd.getStrWidth("0000") - 4, (pageIndex - Top_Item_Index) * h + 1 + title_h, lcd.getStrWidth("0000") + 4, h + 1);
+      break;
+
+    default:
+      break;
+    }
   }
 }
 
 void LCD_Encoder_Rise()
 {
-  isLCD = true;
+  // isLCD = true;
   LCD_Encoder_State = digitalRead(LCD_Encoder_A_pin);
+
+  bool is_update_LCD_en_count = false;
 
   if (LCD_Encoder_State != LCD_Encoder_LastState)
   {
     if (digitalRead(LCD_Encoder_B_pin) != LCD_Encoder_State)
     {
-      LCD_en_count++;
-
       if (LCD_PageNow == 12)
-      {
         Target_IL += 0.05;
+      else if (LCD_PageNow == 14)
+        AQ_Scan_Compensation_Steps_Z_A += 1;
+      else if (LCD_PageNow == 99)
+        ui_YesNo_Selection = false;
+      else
+      {
+        is_update_LCD_en_count = true;
+        LCD_en_count++;
       }
     }
     else
     {
-      LCD_en_count--;
-
       if (LCD_PageNow == 12)
-      {
         Target_IL -= 0.05;
+      else if (LCD_PageNow == 14)
+        AQ_Scan_Compensation_Steps_Z_A -= 1;
+      else if (LCD_PageNow == 99)
+        ui_YesNo_Selection = true;
+      else
+      {
+        is_update_LCD_en_count = true;
+        LCD_en_count--;
       }
     }
   }
   LCD_Encoder_LastState = LCD_Encoder_State;
 
+  // if (is_update_LCD_en_count)
+  // {
   if (LCD_en_count < 0)
-    LCD_en_count = 0;
-  else if (LCD_en_count > MENU_ITEMS * 2 - 2)
     LCD_en_count = MENU_ITEMS * 2 - 2;
+  else if (LCD_en_count == MENU_ITEMS * 2 - 1)
+    LCD_en_count = MENU_ITEMS * 2 - 1;
+  else if (LCD_en_count > MENU_ITEMS * 2 - 1)
+    LCD_en_count = 0;
 
+  // Serial.println("update_LCD_en_count:" + String(LCD_PageNow));
+  // }
+
+  isLCD = true;
   // Serial.println(String(LCD_en_count));
 }
 
@@ -889,23 +975,44 @@ void LCD_Encoder_Selected()
     Serial.println("Encoder_Pressed_PageNow:" + String(LCD_PageNow));
     switch (LCD_PageNow)
     {
-    case 1: /* Target IL */
-      // Target_IL = -1.2;
+    case 1: /* Into Target IL Mode*/
       LCD_Update_Mode = 12;
       isLCD = true;
       Serial.println("LCD_Update_Mode:" + String(LCD_Update_Mode));
-      // cmd_No = 18;  /* Set Target IL */
+      // cmd_No = 18; /* Set Target IL */
       break;
-    case 2:
-      cmd_No = 19;
+    case 3: /* Into Q Z-offset Mode*/
+      LCD_Update_Mode = 14;
+      isLCD = true;
+      Serial.println("LCD_Update_Mode:" + String(LCD_Update_Mode));
       break;
 
-    case 12: /* Target IL */
-      // Target_IL = -1.2;
+    case 7: /* Into Get Ref Mode*/
+      LCD_Update_Mode = 99;
+      isLCD = true;
+      // Serial.println("LCD_Update_Mode:" + String(LCD_Update_Mode));
+
+      break;
+    case 99:
+      if (ui_YesNo_Selection)
+        cmd_No = 19; //Get Ref
+
+      LCD_Update_Mode = 0;
+      isLCD = true;
+      break;
+
+    case 12: /* Set Target IL */
       LCD_en_count = 2;
       LCD_Update_Mode = 0;
       isLCD = true;
-      cmd_No = 18; /* Set Target IL */
+      // cmd_No = 18; /* Set Target IL */
+      break;
+
+    case 14: /* Set Q Z-offset */
+      LCD_en_count = 6;
+      LCD_Update_Mode = 0;
+      isLCD = true;
+      Serial.println("Write EEPROM AQ_Scan_Compensation_Steps_Z_A: " + WR_EEPROM(160, String(AQ_Scan_Compensation_Steps_Z_A)));
       break;
 
     default:
@@ -918,10 +1025,30 @@ void LCD_Encoder_Selected()
   }
 }
 
+// String readData() {
+//   return String(550 / 100.0F);
+// }
+
 void setup()
 {
   Serial.begin(115200);
   Serial.setTimeout(20); //設定序列埠接收資料時的最大等待時間
+
+  // Setting the ESP as an access point
+  // Serial.print("Setting AP (Access Point)…");
+  // Remove the password parameter, if you want the AP (Access Point) to be open
+  // WiFi.softAP(ssid, password);
+
+  //  IPAddress IP = WiFi.softAPIP();
+  // Serial.print("AP IP address: ");
+  // Serial.println(IP);
+
+  // server.on("/Data", HTTP_GET, [](AsyncWebServerRequest *request){
+  //   request->send_P(200, "text/plain", readData().c_str());
+  // });
+
+  // Start server
+  // server.begin();
 
   // BT.begin("AutoAlign_02"); //BLE ID
   // BT.setTimeout(20);
@@ -994,13 +1121,16 @@ void setup()
   Target_IL = eepromString.toDouble();
   Serial.println("Target IL: " + String(Target_IL));
 
-  double t1 = millis();
-  for (int i = 0; i < 1; i++)
-  {
-    PD_Now = Cal_PD_Input_IL(100); //6 ms
-  }
-  double t2 = millis();
-  Serial.println("Get PD Timespan : " + String(t2 - t1));
+  AQ_Scan_Compensation_Steps_Z_A = ReadInfoEEPROM(160, 8).toInt();
+  Serial.println("AQ_Scan_Compensation_Steps_Z_A: " + String(AQ_Scan_Compensation_Steps_Z_A));
+
+  // double t1 = millis();
+  // for (int i = 0; i < 1; i++)
+  // {
+  //   PD_Now = Cal_PD_Input_IL(100); //6 ms
+  // }
+  // double t2 = millis();
+  // Serial.println("Get PD Timespan : " + String(t2 - t1));
 
   //在core 0啟動 mision 1
   xTaskCreatePinnedToCore(
@@ -3336,11 +3466,11 @@ int Function_Classification(String cmd, int ButtonSelected)
     }
     else if (cmd == "Yp1")
     {
-      cmd_No = 106;
+      cmd_No = 104;
     }
     else if (cmd == "Ym1")
     {
-      cmd_No = 104;
+      cmd_No = 106;
     }
     else if (cmd == "Zp1")
     {
@@ -3388,7 +3518,7 @@ int Function_Classification(String cmd, int ButtonSelected)
 
       cmd.remove(0, 2);
 
-      Move_Motor(dirPin, stpPin, dirt, cmd.toDouble(), 80, 100); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
+      Move_Motor(dirPin, stpPin, dirt, cmd.toDouble(), delayBetweenStep_Y, 0); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
     }
 
     //Abs
@@ -3424,10 +3554,9 @@ int Function_Classification(String cmd, int ButtonSelected)
     }
 
     //Abs All
-    else if (Contains(cmd, "Abs_All_"))
+    else if (Contains(cmd, "AbsAll_"))
     {
-      Serial.println("Abs all");
-      cmd.remove(0, 8);
+      cmd.remove(0, 7);
 
       int travel_x = 0, travel_y = 0, travel_z = 0;
 
@@ -3668,7 +3797,11 @@ int Function_Classification(String cmd, int ButtonSelected)
         AA_ScanFinal_Scan_Steps_X_A = cmd.toInt();
 
       else if (ParaName == "AQ_Scan_Compensation_Steps_Z_A")
+      {
         AQ_Scan_Compensation_Steps_Z_A = cmd.toInt();
+
+        Serial.println("Write EEPROM AQ_Scan_Compensation_Steps_Z_A: " + WR_EEPROM(160, cmd));
+      }
 
       else if (ParaName == "AA_ScanFinal_Scan_Delay_X_A")
         AA_ScanFinal_Scan_Delay_X_A = cmd.toInt();
@@ -3843,6 +3976,20 @@ int Function_Classification(String cmd, int ButtonSelected)
       Serial.println("Set PD avg points:" + String(Get_PD_Points));
     }
 
+    //Set ID
+    else if (Contains(cmd, "ID#"))
+    {
+      cmd.remove(0, 2);
+      WR_EEPROM(120, cmd);
+      Serial.println("Set ID: " + cmd);
+    }
+
+    //Get ID
+    else if (cmd == "ID?")
+    {
+      Serial.println(ReadInfoEEPROM(120, 8));
+    }
+
     //Command No.
     else if (Contains(cmd, "cmd"))
     {
@@ -3919,6 +4066,8 @@ int Function_Excecutation(String cmd, int cmd_No)
       case 1: /* Auto Align */
         if (true)
         {
+          AQ_Scan_Compensation_Steps_Z_A = 0;
+
           digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
           delay(3);
 
@@ -3929,6 +4078,9 @@ int Function_Excecutation(String cmd, int cmd_No)
           MotorCC = true;
 
           StopValue = 0; //0 dB
+
+          AQ_Scan_Compensation_Steps_Z_A = ReadInfoEEPROM(160, 8).toInt();
+          Serial.println("AQ_Scan_Compensation_Steps_Z_A: " + String(AQ_Scan_Compensation_Steps_Z_A));
 
           isLCD = true;
           LCD_Update_Mode = 0;
@@ -4029,7 +4181,7 @@ int Function_Excecutation(String cmd, int cmd_No)
 
             digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
             delay(5);
-           
+
             if (Serial.available())
               cmd = Serial.readString();
 
@@ -4039,7 +4191,7 @@ int Function_Excecutation(String cmd, int cmd_No)
 
             cmd_No = Function_Classification(cmd, ButtonSelected);
 
-            cmd = "";  //Reset command from serial port
+            cmd = ""; //Reset command from serial port
 
             isLCD = true;
             LCD_Update_Mode = 2;
@@ -4322,10 +4474,20 @@ int Function_Excecutation(String cmd, int cmd_No)
         cmd_No = 0;
         break;
 
+      case 29: /* Get XYZ Position */
+        DataOutput(false);
+        cmd_No = 0;
+        break;
+
       case 31:
         isLCD = true;
         LCD_Update_Mode = 100;
         Serial.println("LCD Re-Start");
+        cmd_No = 0;
+        break;
+
+      case 51: /* Get ID */
+        Serial.println(ReadInfoEEPROM(120, 8));
         cmd_No = 0;
         break;
       }
@@ -4455,7 +4617,7 @@ int Function_Excecutation(String cmd, int cmd_No)
         cmd_No = 0;
         break;
 
-        //Y feed - cont
+        //Y- feed - cont
       case 106:
 
         while (true)
@@ -4486,6 +4648,7 @@ int Function_Excecutation(String cmd, int cmd_No)
         cmd_No = 0;
         break;
 
+      //Y+ feed - cont
       case 104:
 
         while (true)
