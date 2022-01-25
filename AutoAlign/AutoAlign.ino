@@ -22,6 +22,8 @@ const char *password = "123456789";
 
 const char *serverNameData = "http://192.168.4.1/Data";
 
+bool isWiFiConnected = false;
+
 String ID = "#003";
 
 // Create AsyncWebServer object on port 80
@@ -45,6 +47,7 @@ uint8_t LCD_Select_pin = 21;
 bool LCD_Encoder_State = false;
 bool LCD_Encoder_LastState = false;
 int LCD_en_count = 0;
+int idx = 0;
 int current_selection = 0;
 
 int LCD_Update_Mode = 0;
@@ -90,9 +93,9 @@ long Y_Pos_Now = 0;
 long Z_Pos_Now = 0;
 long Z_Pos_reLoad = 0;
 
-int X_rotator_steps = 2;
-int Y_rotator_steps = 2;
-int Z_rotator_steps = 20;
+// int X_rotator_steps = 2;
+// int Y_rotator_steps = 2;
+// int Z_rotator_steps = 20;
 
 int X_backlash = 0;
 int Y_backlash = 0;
@@ -128,7 +131,7 @@ double AA_ScanRough_Feed_Ratio_Z_D = 1.8;
 int AA_ScanRough_Scan_Steps_Y_A = 25;
 int AA_ScanRough_Scan_Steps_Y_B = 30;
 int AA_ScanRough_Scan_Steps_Y_C = 40;
-int AA_ScanRough_Scan_Steps_Y_D = 80;
+int AA_ScanRough_Scan_Steps_Y_D = 70;
 int AA_ScanRough_Scan_Steps_X_A = 25;
 int AA_ScanRough_Scan_Steps_X_B = 30;
 int AA_ScanRough_Scan_Steps_X_C = 80;
@@ -144,6 +147,9 @@ int AA_ScanFinal_Scan_Steps_X_A = 20;
 int AQ_Scan_Compensation_Steps_Z_A = 12;
 
 int AA_ScanFinal_Scan_Delay_X_A = 100;
+int AA_ScanFinal_Scan_Delay_Y_A = 100;
+
+int AQ_Total_TimeSpan = 840;
 
 double averagePDInput = 0;
 
@@ -174,6 +180,7 @@ int Q_State = 0;
 unsigned long Q_Time = 0;
 unsigned long LCD_Auto_Update_TimeCount = 0;
 byte GetPower_Mode = 1;
+bool is_Scan_V2_ReWork = false;
 
 // BluetoothSerial BT; //宣告藍芽物件，名稱為BT
 
@@ -608,21 +615,18 @@ void EmergencyStop()
 {
   isStop = true;
 
-  // lcd.begin();
-  // lcd.clearBuffer();
-  // lcd.clearDisplay();
-  // lcd.clearWriteError();
-
-  // isLCD = true;
-  // LCD_Update_Mode = 0;
-  // LCD_PageNow = 100;
-
-  MSGOutput("EmergencyStop");
-  // Serial.println("EmergencyStop");
-  isWatchDog_Flag = !isWatchDog_Flag;
+  // MSGOutput("EmergencyStop");
+  Serial.println("EmergencyStop");
+  // isWatchDog_Flag = !isWatchDog_Flag;
   digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
 
-  delay(100);
+  // lcd.begin();
+  // lcd.clear();
+  // lcd.clearDisplay();
+  // lcd.clearWriteError();
+  // lcd.clearBuffer();
+  // lcd.sendBuffer();
+  // delay(100);
 }
 
 #define MENU_ITEMS 8
@@ -650,16 +654,13 @@ void updateUI(int pageIndex)
       pageIndex = MENU_ITEMS - 1;
     // Serial.println("LCD Update: " + String(pageIndex) + ", Mode: " + String(LCD_Update_Mode));
 
-    Serial.println("LCD_PageNow:" + String(LCD_PageNow));
-    Serial.println("pageIndex:" + String(pageIndex));
+    // Serial.println("LCD_Now:" + String(LCD_PageNow) + ",Index:" + String(pageIndex));
 
-    if (LCD_Update_Mode == 0 && pageIndex != LCD_PageNow) /* Main */
+    if (LCD_Update_Mode == 0 && pageIndex != LCD_PageNow) /* Main Page*/
     {
       // lcd.begin();
-      // lcd.clearBuffer();
-      lcd.clearDisplay();
-      // lcd.clearWriteError();
-      // delay(200);
+      lcd.clearBuffer();
+      // lcd.clearDisplay();
 
       H = lcd.getHeight();
       h = lcd.getFontAscent() - lcd.getFontDescent() + 2;
@@ -720,8 +721,8 @@ void updateUI(int pageIndex)
 
     else if (LCD_Update_Mode == 2) /* Auto-Curing */
     {
-      // lcd.clearBuffer();
-      lcd.clearDisplay();
+      lcd.clearBuffer();
+      // lcd.clearDisplay();
       // lcd.clearWriteError();
 
       h = lcd.getFontAscent() - lcd.getFontDescent() + 2;
@@ -744,8 +745,8 @@ void updateUI(int pageIndex)
 
     else if (LCD_Update_Mode == 12) /* Target IL */
     {
-      // lcd.clearBuffer();
-      lcd.clearDisplay();
+      lcd.clearBuffer();
+      // lcd.clearDisplay();
 
       int title_w = (w / 2) - (lcd.getStrWidth("Menu") / 2);
       lcd.drawStr(title_w, h - 1, "Menu");
@@ -765,8 +766,8 @@ void updateUI(int pageIndex)
 
     else if (LCD_Update_Mode == 14) /* Q Z-offset */
     {
-      // lcd.clearBuffer();
-      lcd.clearDisplay();
+      lcd.clearBuffer();
+      // lcd.clearDisplay();
 
       int title_w = (w / 2) - (lcd.getStrWidth("Menu") / 2);
       lcd.drawStr(title_w, h - 1, "Menu");
@@ -786,7 +787,8 @@ void updateUI(int pageIndex)
 
     else if (LCD_Update_Mode == 99) /* Get Ref ? */
     {
-      lcd.clearDisplay();
+      lcd.clearBuffer();
+      // lcd.clearDisplay();
 
       h = lcd.getFontAscent() - lcd.getFontDescent() + 2;
       w = lcd.getWidth();
@@ -918,6 +920,7 @@ void Draw_ALL_UI_Items(int LCD_Update_Mode, int pageIndex)
   }
 }
 
+int pre_LCD_Page_index = 0;
 void LCD_Encoder_Rise()
 {
   // isLCD = true;
@@ -958,20 +961,8 @@ void LCD_Encoder_Rise()
   }
   LCD_Encoder_LastState = LCD_Encoder_State;
 
-  // if (is_update_LCD_en_count)
-  // {
-  if (LCD_en_count < 0)
-    LCD_en_count = MENU_ITEMS * 2 - 2;
-  else if (LCD_en_count == MENU_ITEMS * 2 - 1)
-    LCD_en_count = MENU_ITEMS * 2 - 1;
-  else if (LCD_en_count > MENU_ITEMS * 2 - 1)
-    LCD_en_count = 0;
-
-  // Serial.println("update_LCD_en_count:" + String(LCD_PageNow));
-  // }
-
+  idx = LCD_en_count / 2;
   isLCD = true;
-  // Serial.println(String(LCD_en_count));
 }
 
 void LCD_Encoder_Selected()
@@ -986,18 +977,21 @@ void LCD_Encoder_Selected()
     case 1: /* Into Target IL Mode*/
       LCD_Update_Mode = 12;
       isLCD = true;
+      pre_LCD_Page_index = LCD_PageNow;
       Serial.println("LCD_Update_Mode:" + String(LCD_Update_Mode));
       // cmd_No = 18; /* Set Target IL */
       break;
     case 3: /* Into Q Z-offset Mode*/
       LCD_Update_Mode = 14;
       isLCD = true;
+      pre_LCD_Page_index = LCD_PageNow;
       Serial.println("LCD_Update_Mode:" + String(LCD_Update_Mode));
       break;
 
     case 7: /* Into Get Ref Mode*/
       LCD_Update_Mode = 99;
       isLCD = true;
+      pre_LCD_Page_index = LCD_PageNow;
       // Serial.println("LCD_Update_Mode:" + String(LCD_Update_Mode));
 
       break;
@@ -1028,8 +1022,9 @@ void LCD_Encoder_Selected()
     default:
       break;
     }
+    updateUI(pre_LCD_Page_index);
 
-    delay(500);
+    delay(300);
 
     btn_isTrigger = false;
   }
@@ -1152,63 +1147,18 @@ void setup()
     Serial.println("");
     Serial.print("Connected to WiFi network with IP Address:");
     Serial.println(WiFi.localIP());
+    isWiFiConnected = true;
   }
   else
   {
     Serial.println("Connected to WiFi network failed");
   }
 
-  // //Server Request Setting
-  // if (true)
-  // {
-
-  //   // Setting the ESP as an access point
-  //   Serial.print("Setting AP (Access Point)…");
-  //   // Remove the password parameter, if you want the AP (Access Point) to be open
-  //   WiFi.softAP(ssid, password);
-
-  //   IPAddress IP = WiFi.softAPIP();
-  //   Serial.print("AP IP address: ");
-  //   Serial.println(IP);
-
-  //   server.on("/Data", HTTP_GET, [](AsyncWebServerRequest *request)
-  //             { request->send_P(200, "text/plain", readData().c_str()); });
-
-  //   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-  //             {
-  //               int paramsNr = request->params();
-  //               Serial.println(paramsNr);
-
-  //               for (int i = 0; i < paramsNr; i++)
-  //               {
-
-  //                 AsyncWebParameter *p = request->getParam(i);
-  //                 Serial.print("Param name: ");
-  //                 Serial.println(p->name());
-  //                 Serial.print("Param value: ");
-  //                 Serial.println(p->value());
-  //                 Serial.println("------");
-  //               }
-
-  //               request->send(200, "text/plain", "message received");
-  //             });
-
-  //   // Start server
-  //   server.begin();
-  // }
-
-  // BT.begin("AutoAlign_02"); //BLE ID
-  // BT.setTimeout(20);
-
   // u8g2_font_5x7_tf
   lcd.begin();
 
-  // Serial.println("h:" + String(h), + ",w:" + String(w) + ",titleH:" + String(title_h));
   lcd.setFont(u8g2_font_6x10_tf);
   lcd.clearDisplay();
-
-  isLCD = true;
-  LCD_Update_Mode = 0;
 
   pinMode(LED_Align, OUTPUT);
   pinMode(X_STP_Pin, OUTPUT);
@@ -1257,38 +1207,58 @@ void setup()
 
   String eepromString;
 
-  for (int i = 0; i < 200; i = i + 8)
+  for (int i = 0; i < 169; i = i + 8)
   {
     eepromString = ReadInfoEEPROM(i, 8); //Reading EEPROM(int start_position, int data_length)
-    Serial.printf("EEPROM(%d) - %e\r\n", String(i), eepromString);
+    MSGOutput("EEPROM(" + String(i) + ") - " + eepromString);
+    // Serial.printf("EEPROM(%d) - %e\r\n", String(i), eepromString);
   }
 
-  MSGOutput("ID: " + ReadInfoEEPROM(120, 8));
+  MSGOutput("ID: " + ReadInfoEEPROM(8, 8));  //pre - 120
 
   eepromString = ReadInfoEEPROM(0, 8); //Reading EEPROM(int start_position, int data_length)
   ref_Dac = eepromString.toDouble();
   ref_IL = ILConverter(ref_Dac);
   MSGOutput("Ref IL: " + String(ref_IL));
 
-  eepromString = ReadInfoEEPROM(72, 8); //Reading EEPROM(int start_position, int data_length)
+  eepromString = ReadInfoEEPROM(24, 8);
+  X_backlash = eepromString.toInt();
+  MSGOutput("X_backlash: " + String(X_backlash));
+
+  eepromString = ReadInfoEEPROM(32, 8);
+  Y_backlash = eepromString.toInt();
+  MSGOutput("Y_backlash: " + String(Y_backlash));
+
+  eepromString = ReadInfoEEPROM(40, 8);
+  Z_backlash = eepromString.toInt();
+  MSGOutput("Z_backlash: " + String(Z_backlash));
+
+  eepromString = ReadInfoEEPROM(72, 8);
   Target_IL = eepromString.toDouble();
   MSGOutput("Target IL: " + String(Target_IL));
 
   AQ_Scan_Compensation_Steps_Z_A = ReadInfoEEPROM(160, 8).toInt();
   MSGOutput("AQ_Scan_Compensation_Steps_Z_A: " + String(AQ_Scan_Compensation_Steps_Z_A));
 
+  AQ_Total_TimeSpan = ReadInfoEEPROM(168, 8).toInt();
+  MSGOutput("AQ_Total_TimeSpan: " + String(AQ_Total_TimeSpan));
+
   AA_ScanFinal_Scan_Delay_X_A = ReadInfoEEPROM(80, 8).toInt();
   MSGOutput("AA_ScanFinal_Scan_Delay_X_A: " + String(AA_ScanFinal_Scan_Delay_X_A));
 
+  isLCD = true;
+  LCD_Update_Mode = 0;
+  updateUI(0);
+
   //在core 0啟動 mision 1
-  xTaskCreatePinnedToCore(
-      Task_1_sendData, /* 任務實際對應的Function */
-      "Task_1",        /* 任務名稱 */
-      10000,           /* 堆疊空間 */
-      NULL,            /* 無輸入值 */
-      0,               /* 優先序0 */
-      &Task_1,         /* 對應的任務變數位址 */
-      0);              /*指定在核心0執行 */
+  // xTaskCreatePinnedToCore(
+  //     Task_1_sendData, /* 任務實際對應的Function */
+  //     "Task_1",        /* 任務名稱 */
+  //     10000,           /* 堆疊空間 */
+  //     NULL,            /* 無輸入值 */
+  //     0,               /* 優先序0 */
+  //     &Task_1,         /* 對應的任務變數位址 */
+  //     0);              /*指定在核心0執行 */
 }
 
 bool isMsgShow = false;
@@ -1379,6 +1349,68 @@ void loop()
         }
 
         MSGOutput("PD_Power:" + String(value)); //dB
+      }
+    }
+
+    //LCD UI Update
+    if (true)
+    {
+      // LCD_Encoder_Rise();
+
+      if (!digitalRead(LCD_Select_pin))
+      {
+        LCD_Encoder_Selected();
+      }
+
+      //Update UI
+      if (true)
+      {
+        if (idx == pre_LCD_Page_index)
+        {
+          if (LCD_Update_Mode <= 9)
+            isLCD = false;
+          else if (LCD_Update_Mode > 9 && isLCD)
+            isLCD = true;
+          else
+            isLCD = false;
+        }
+
+        if (!isLCD)
+          return;
+
+        if (idx > pre_LCD_Page_index)
+        {
+          idx = pre_LCD_Page_index + 1;
+          pre_LCD_Page_index = idx;
+        }
+        else if (idx < pre_LCD_Page_index)
+        {
+          idx = pre_LCD_Page_index - 1;
+          pre_LCD_Page_index = idx;
+        }
+        LCD_en_count = idx * 2;
+
+        if (idx < 0)
+        {
+          LCD_en_count = 0;
+          idx = 0;
+        }
+        else if (idx >= MENU_ITEMS - 1)
+        {
+          LCD_en_count = MENU_ITEMS * 2 - 2;
+          idx = MENU_ITEMS - 1;
+        }
+
+        // if (idx < 0)
+        //   LCD_en_count = MENU_ITEMS * 2 - 2;
+        // else if (idx == MENU_ITEMS - 1)
+        //   LCD_en_count = MENU_ITEMS * 2 - 2;
+        // else if (idx > MENU_ITEMS - 1)
+        //   LCD_en_count = 0;
+
+        // Serial.println("idx:" + String(idx) + ",pre_LCD_Page_index:" + String(pre_LCD_Page_index) + ", LCD_en_count:" + String(LCD_en_count));
+        updateUI(idx);
+        isLCD = false;
       }
     }
   }
@@ -1515,14 +1547,15 @@ bool Fine_Scan(int axis, bool Trip2Stop)
 
       CMDOutput("AS");
       msg = Region + ",X_Scan,Round_" + String(1) + ",Trip_";
-      K_OK = Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan,Trip_");
+      // K_OK = Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan,Trip_");
+      K_OK = Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 400, 2, "X Scan,Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
       {
         CMDOutput("AS");
         msg = Region + ",X_Re-Scan,Round_" + String(1) + ",Trip_";
-        Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X_Scan,Trip_");
+        Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 400, 2, "X Scan,Trip_");
         CMDOutput("%:");
       }
 
@@ -1614,6 +1647,7 @@ void AutoAlign()
 {
   isLCD = true;
   LCD_Update_Mode = 1;
+  updateUI(pre_LCD_Page_index);
 
   StopValue = Target_IL;
   //  Reset_Z_to_Origin(); //Back to origin
@@ -1796,7 +1830,7 @@ void AutoAlign()
 
             MSGOutput("ratio_idx:" + String(ratio_idx));
 
-            Move_Motor(Z_DIR_Pin, Z_STP_Pin, true, motorStep, 20, stableDelay); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
+            Move_Motor(Z_DIR_Pin, Z_STP_Pin, true, motorStep, 30, stableDelay); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
           }
 
           MSGOutput("Z_feed:" + String(motorStep));
@@ -1927,8 +1961,17 @@ void AutoAlign()
           MinMotroStep = AA_ScanRough_Scan_Steps_Y_D; //default:70
 
         CMDOutput("AS");
-        PD_After = AutoAlign_Scan_DirectionJudge_V2(1, 20, Threshold, MinMotroStep, stableDelay, MotorCC_Y, delayBetweenStep, Get_PD_Points, stopValue, msg);
+        MSGOutput("Gap:" + MinMotroStep);
+        PD_After = AutoAlign_Scan_DirectionJudge_V2(1, 20, Threshold, MinMotroStep, stableDelay, MotorCC_Y, delayBetweenStep, Get_PD_Points, Target_IL, msg);
         CMDOutput("%:");
+
+        // if (is_Scan_V2_ReWork)
+        // {
+        //   CMDOutput("AS");
+        //   MSGOutput("Gap:" + MinMotroStep);
+        //   PD_After = AutoAlign_Scan_DirectionJudge_V2(1, 20, Threshold, MinMotroStep, stableDelay, MotorCC_Y, delayBetweenStep, Get_PD_Points, Target_IL, msg);
+        //   CMDOutput("%:");
+        // }
 
         msg = Region + ",X_Scan" + ",Trip_";
         if (PD_After > -9)
@@ -1943,8 +1986,17 @@ void AutoAlign()
           MinMotroStep = AA_ScanRough_Scan_Steps_X_E; //default:120
 
         CMDOutput("AS");
-        PD_After = AutoAlign_Scan_DirectionJudge_V2(0, 20, Threshold, MinMotroStep, stableDelay, MotorCC_X, delayBetweenStep, Get_PD_Points, stopValue, msg);
+        MSGOutput("Gap:" + MinMotroStep);
+        PD_After = AutoAlign_Scan_DirectionJudge_V2(0, 20, Threshold, MinMotroStep, stableDelay, MotorCC_X, delayBetweenStep, Get_PD_Points, Target_IL, msg);
         CMDOutput("%:");
+
+        // if (is_Scan_V2_ReWork)
+        // {
+        //   CMDOutput("AS");
+        //   MSGOutput("Gap:" + MinMotroStep);
+        //   PD_After = AutoAlign_Scan_DirectionJudge_V2(0, 20, Threshold, MinMotroStep, stableDelay, MotorCC_X, delayBetweenStep, Get_PD_Points, Target_IL, msg);
+        //   CMDOutput("%:");
+        // }
       }
 
       PD_After = Cal_PD_Input_IL(Get_PD_Points);
@@ -2007,7 +2059,6 @@ void AutoAlign()
 
   PD_LV3 = Cal_PD_Input_IL(Get_PD_Points);
   time4 = millis();
-  // Serial.println("Scan(Rough) TimeSpan : " + String((time4 - time3) / 1000) + " s");
 
   if (isStop)
     return;
@@ -2023,15 +2074,18 @@ void AutoAlign()
   if (true && PD_Now > -25)
   {
     CMDOutput("AS");
-    Scan_AllRange_TwoWay(2, 6, AA_ScanFine_Scan_Steps_Z_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, StopValue, 500, 2, Region + "_Z Scan, Trip_");
+    // Scan_AllRange_TwoWay(2, 6, AA_ScanFine_Scan_Steps_Z_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, StopValue, 500, 2, Region + "_Z Scan, Trip_");
+    Scan_AllRange_TwoWay(2, 6, AA_ScanFine_Scan_Steps_Z_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, Target_IL, 300, 2, Region + "_Z Scan, Trip_");
     CMDOutput("%:");
 
     CMDOutput("AS");
-    Scan_AllRange_TwoWay(1, 8, AA_ScanFine_Scan_Steps_Y_A, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 550, 2, Region + "_Y Scan, Trip_");
+    // Scan_AllRange_TwoWay(1, 8, AA_ScanFine_Scan_Steps_Y_A, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 550, 2, Region + "_Y Scan, Trip_");
+    Scan_AllRange_TwoWay(1, 8, AA_ScanFine_Scan_Steps_Y_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, Target_IL, 500, 2, Region + "_Y Scan, Trip_");
     CMDOutput("%:");
 
     CMDOutput("AS");
-    Scan_AllRange_TwoWay(0, 8, AA_ScanFine_Scan_Steps_X_A, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 550, 2, Region + "_X Scan, Trip_");
+    // Scan_AllRange_TwoWay(0, 8, AA_ScanFine_Scan_Steps_X_A, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 550, 2, Region + "_X Scan, Trip_");
+    Scan_AllRange_TwoWay(0, 8, AA_ScanFine_Scan_Steps_X_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, Target_IL, 300, 2, Region + "_X Scan, Trip_");
     CMDOutput("%:");
 
     // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
@@ -2878,7 +2932,7 @@ bool Scan_1D_TwoWay(int XYZ, int count, int Threshold, int motorStep, int stable
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
-                          bool Direction, int delayBetweenStep, int StopPDValue, int Get_PD_Points, int Trips, String msg)
+                          bool Direction, int delayBetweenStep, double StopPDValue, int Get_PD_Points, int Trips, String msg)
 {
   int DIR_Pin = 0;
   int STP_Pin = 0;
@@ -2918,9 +2972,12 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     delay(5);
     break;
   }
+
   Serial.println("Scan Step: " + String(motorStep));
+  Serial.println("Backlash: " + String(backlash));
   CMDOutput(">>" + msg + String(trip));
-  // Serial.println(">>" + msg + String(trip)); //Trip_1
+
+  MSGOutput("StopValue:" + String(StopPDValue));
 
   double PD_initial = Cal_PD_Input_IL(Get_PD_Points);
   if (PD_initial >= StopPDValue)
@@ -2939,7 +2996,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
   delay(stableDelay + 100); //Trip_1 --------------------------------------------------------------------------------------
 
-  CMDOutput(">>" + msg + String(trip));
+  // CMDOutput(">>" + msg + String(trip));
   // Serial.println(">>" + msg + String(trip)); //Trip_1
 
   PD_Now = Cal_PD_Input_IL(Get_PD_Points);
@@ -2990,7 +3047,10 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     DataOutput(XYZ, PD_Value[i]); //int xyz, double pdValue
 
     if (PD_Value[i] >= StopPDValue)
+    {
+      MSGOutput("Better than StopValue");
       return true;
+    }
 
     if (i == (dataCount - 1) && Pos_Best_Trip1 == Get_Position(XYZ))
     {
@@ -3004,8 +3064,6 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
         timer_2 = millis();
         double ts = (timer_2 - timer_1) * 0.001;
         CMDOutput("t:" + String(ts, 2));
-        // Serial.print("TS:");
-        // Serial.println(ts, 2);
 
         return true;
       }
@@ -3084,7 +3142,10 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
       DataOutput(XYZ, PD_Value[i]); //int xyz, double pdValue
 
       if (PD_Value[i] >= StopPDValue)
+      {
+        MSGOutput("Better than StopValue");
         return true;
+      }
 
       if (indexofBestIL != 0 && i == (dataCount - 1) && Pos_Best_Trip2 != Get_Position(XYZ))
       {
@@ -3124,7 +3185,8 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
     Serial.println("Best in Trip_2 : " + String(Pos_Best_Trip2));
 
-    Pos_Best_Trip2 = Pos_Best_Trip2 - AQ_Scan_Compensation_Steps_Z_A;
+    if (XYZ == 2)
+      Pos_Best_Trip2 = Pos_Best_Trip2 - AQ_Scan_Compensation_Steps_Z_A;
 
     Serial.println("Best in Trip_2 (Compensation) : " + String(Pos_Best_Trip2));
 
@@ -3132,15 +3194,15 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
     Move_Motor_abs(XYZ, Pos_Ini_Trip2); //Jump to Trip_2 start position
 
-    delay(300);
+    delay(100);
 
     deltaPos = abs(Pos_Best_Trip2 - Get_Position(XYZ));
 
     if (deltaPos < backlash)
     {
-      Serial.println("Jump Backlesh");
-      step(STP_Pin, (backlash * 1 - deltaPos), delayBetweenStep);
-      delay(stableDelay);
+      Serial.println("Jump Backlesh 2");
+      step(STP_Pin, (backlash - deltaPos), delayBetweenStep);
+      delay(stableDelay + 100);
 
       deltaPos = abs(Pos_Best_Trip2 - Get_Position(XYZ));
     }
@@ -3155,24 +3217,23 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     digitalWrite(DIR_Pin, MotorCC);
     delay(5);
   }
-  else
+  else //------------Best in Trip_1----------------
   {
     Serial.println("Best in Trip_1 : " + String(Pos_Best_Trip1));
 
-    Pos_Best_Trip1 = Pos_Best_Trip1 - AQ_Scan_Compensation_Steps_Z_A;
+    if (XYZ == 2)
+      Pos_Best_Trip1 = Pos_Best_Trip1 - AQ_Scan_Compensation_Steps_Z_A;
 
     Serial.println("Best in Trip_1 (Compensation) : " + String(Pos_Best_Trip1));
 
     PD_Best = IL_Best_Trip1;
     deltaPos = abs(Pos_Best_Trip1 - Get_Position(XYZ));
 
-    if (deltaPos < backlash)
+    if (deltaPos < motorStep * 2)
     {
-      Serial.println("Jump Backlesh");
-      step(STP_Pin, motorStep, delayBetweenStep);
-      delay(150);
+      Serial.println("Jump Backlesh 1");
 
-      deltaPos = abs(Pos_Best_Trip1 - Get_Position(XYZ));
+      return false;
     }
 
     if (isStop)
@@ -3182,7 +3243,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
     MotorCC = !MotorCC; //Reverse direction
     digitalWrite(DIR_Pin, MotorCC);
-    delay(1);
+    delay(2);
   }
 
   Serial.println("Delta Pos : " + String(deltaPos));
@@ -3226,7 +3287,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     }
     else if (deltaPos == 0)
     {
-      return false;
+      break;
     }
     else
       break;
@@ -3408,7 +3469,7 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
          PD_Trip2_Best = -64,
          PD_Now = -64;
 
-  double PD_Value[count];
+  double PD_Value[count * 2];
   double PD_Rvrs_Value[count];
   int PD_Best_Pos = 0;
   int PD_Best_Pos_Trip2 = 0;
@@ -3489,6 +3550,8 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
 
   PD_Value[0] = Cal_PD_Input_IL(Get_PD_Points);
 
+  int Plus_Times = 0;
+
   // int Trip2_Start_Position = 0;
   long Pos_Ini_Trip2 = Get_Position(XYZ);
 
@@ -3558,7 +3621,7 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
         break;
       }
 
-      if (i == count - 1) //Back to best position after all steps run out
+      if (i == count - 1 && PD_Value[i] != PD_Best) //Back to best position after all steps run out
       {
         trip++;
         CMDOutput("~:" + msg + String(trip)); //Trip_3------------------------------------------------------------
@@ -3572,7 +3635,16 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
         delay(300);
 
         DataOutput(XYZ, Cal_PD_Input_IL(Get_PD_Points)); //int xyz, double pdValue
-        Serial.println("Heolloooooooooooooooooooo");
+        MSGOutput("Back to best position");
+      }
+      else if (i == count - 1 && PD_Value[i] == PD_Best) //未通過最高點
+      {
+        if (Plus_Times < 3)
+        {
+          MSGOutput("Plus three points");
+          count = count + 3;
+          Plus_Times++;
+        }
       }
     }
   }
@@ -3787,6 +3859,7 @@ int Function_Classification(String cmd, int ButtonSelected)
       int motorStep;
       int stableDelay;
       bool Direction;
+      int delayBetweenStep;
       int StopPDValue;
       int Get_PD_Points;
       int Trips;
@@ -3811,6 +3884,10 @@ int Function_Classification(String cmd, int ButtonSelected)
       Serial.println(cmd.substring(0, cmd.indexOf('_'))); //direction
       cmd.remove(0, cmd.indexOf('_') + 1);
 
+      delayBetweenStep = cmd.substring(0, cmd.indexOf('_')).toInt();
+      Serial.println(cmd.substring(0, cmd.indexOf('_'))); //delaySteps
+      cmd.remove(0, cmd.indexOf('_') + 1);
+
       StopPDValue = cmd.substring(0, cmd.indexOf('_')).toInt();
       Serial.println(cmd.substring(0, cmd.indexOf('_'))); //stopValue
       cmd.remove(0, cmd.indexOf('_') + 1);
@@ -3822,16 +3899,25 @@ int Function_Classification(String cmd, int ButtonSelected)
       Trips = cmd.substring(0, cmd.indexOf('_')).toInt();
       Serial.println(cmd); //trips
 
-      int delayBetweenStep = 50;
-      String msg = "Trip_";
+      // int delayBetweenStep = 50;
+      String msg = "Manual_Fine_Scan_Trip_";
+
+      bool isOK = true;
 
       CMDOutput("AS");
-      Serial.println("Auto-Align Start");
 
-      Scan_AllRange_TwoWay(XYZ, count, motorStep, stableDelay,
-                           Direction, delayBetweenStep, StopPDValue, Get_PD_Points, Trips, msg);
+      isOK = Scan_AllRange_TwoWay(XYZ, count, motorStep, stableDelay,
+                                  Direction, delayBetweenStep, StopPDValue, Get_PD_Points, Trips, msg);
 
       CMDOutput("%:");
+
+      if (!isOK)
+      {
+        CMDOutput("AS");
+        Scan_AllRange_TwoWay(XYZ, count, motorStep, stableDelay,
+                             Direction, delayBetweenStep, StopPDValue, Get_PD_Points, Trips, msg);
+        CMDOutput("%:");
+      }
 
       MSGOutput("Auto_Align_End");
     }
@@ -3999,13 +4085,19 @@ int Function_Classification(String cmd, int ButtonSelected)
       else if (ParaName == "AQ_Scan_Compensation_Steps_Z_A")
       {
         AQ_Scan_Compensation_Steps_Z_A = cmd.toInt();
-
         Serial.println("Write EEPROM AQ_Scan_Compensation_Steps_Z_A: " + WR_EEPROM(160, cmd));
+      }
+      else if (ParaName == "AQ_Total_TimeSpan")
+      {
+        AQ_Total_TimeSpan = cmd.toInt();
+        Serial.println("Write EEPROM AQ_Total_TimeSpan: " + WR_EEPROM(168, cmd));
       }
 
       else if (ParaName == "AA_ScanFinal_Scan_Delay_X_A")
+      {
         AA_ScanFinal_Scan_Delay_X_A = cmd.toInt();
-      Serial.println("Write EEPROM AA_ScanFinal_Scan_Delay_X_A: " + WR_EEPROM(80, cmd));
+        Serial.println("Write EEPROM AA_ScanFinal_Scan_Delay_X_A: " + WR_EEPROM(80, cmd));
+      }
     }
 
     //Set BackLash Command
@@ -4020,6 +4112,8 @@ int Function_Classification(String cmd, int ButtonSelected)
         CleanEEPROM(24, 8); //Clean EEPROM(int startPosition, int datalength)
 
         WriteInfoEEPROM(String(cmd), 24); //(data, start_position)  // Write Data to EEPROM
+
+        EEPROM.commit();
 
         Serial.println("Set X BackLash: " + String(String(cmd)));
 
@@ -4039,9 +4133,10 @@ int Function_Classification(String cmd, int ButtonSelected)
 
         WriteInfoEEPROM(String(cmd), 32); //(data, start_position)  // Write Data to EEPROM
 
+        EEPROM.commit();
+
         Serial.println("Set Y BackLash: " + String(String(cmd)));
 
-        // Reading Data from EEPROM
         Serial.println("Y BackLash in eeprom: " + ReadInfoEEPROM(32, 8)); //(start_position, data_length)
 
         Y_backlash = ReadInfoEEPROM(32, 8).toInt();
@@ -4057,9 +4152,10 @@ int Function_Classification(String cmd, int ButtonSelected)
 
         WriteInfoEEPROM(String(cmd), 40); //(data, start_position)  // Write Data to EEPROM
 
+        EEPROM.commit();
+
         Serial.println("Set Z BackLash: " + String(String(cmd)));
 
-        // Reading Data from EEPROM
         Serial.println("Z BackLash in eeprom: " + ReadInfoEEPROM(40, 8)); //(start_position, data_length)
 
         Z_backlash = ReadInfoEEPROM(40, 8).toInt();
@@ -4067,24 +4163,24 @@ int Function_Classification(String cmd, int ButtonSelected)
     }
 
     //eStep Command
-    else if (Contains(cmd, "_eStep:"))
-    {
-      if (Contains(cmd, "X"))
-      {
-        cmd.remove(0, 8);
-        X_rotator_steps = cmd.toInt();
-      }
-      else if (Contains(cmd, "Y"))
-      {
-        cmd.remove(0, 8);
-        Y_rotator_steps = cmd.toInt();
-      }
-      else if (Contains(cmd, "Z"))
-      {
-        cmd.remove(0, 8);
-        Z_rotator_steps = cmd.toInt();
-      }
-    }
+    // else if (Contains(cmd, "_eStep:"))
+    // {
+    //   if (Contains(cmd, "X"))
+    //   {
+    //     cmd.remove(0, 8);
+    //     X_rotator_steps = cmd.toInt();
+    //   }
+    //   else if (Contains(cmd, "Y"))
+    //   {
+    //     cmd.remove(0, 8);
+    //     Y_rotator_steps = cmd.toInt();
+    //   }
+    //   else if (Contains(cmd, "Z"))
+    //   {
+    //     cmd.remove(0, 8);
+    //     Z_rotator_steps = cmd.toInt();
+    //   }
+    // }
 
     //Set Scan Steps Command
     else if (Contains(cmd, "_ScanSTP:"))
@@ -4204,14 +4300,14 @@ int Function_Classification(String cmd, int ButtonSelected)
     else if (Contains(cmd, "ID#"))
     {
       cmd.remove(0, 2);
-      WR_EEPROM(120, cmd);
+      WR_EEPROM(8, cmd);
       Serial.println("Set ID: " + cmd);
     }
 
     //Get ID
     else if (cmd == "ID?")
     {
-      Serial.println(ReadInfoEEPROM(120, 8));
+      Serial.println(ReadInfoEEPROM(8, 8));
     }
 
     //Command No.
@@ -4309,6 +4405,7 @@ int Function_Excecutation(String cmd, int cmd_No)
           isLCD = true;
           LCD_Update_Mode = 0;
           LCD_PageNow = 100;
+          updateUI(0);
         }
         cmd_No = 0;
         break;
@@ -4319,36 +4416,47 @@ int Function_Excecutation(String cmd, int cmd_No)
         {
           StopValue = 0; //0 dB
 
+          bool K_OK = true;
+
           isLCD = true;
           LCD_Update_Mode = 1;
+          updateUI(pre_LCD_Page_index);
+          AQ_Scan_Compensation_Steps_Z_A = 0;
 
           digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
 
           CMDOutput("AS");
-          // Serial.println("Auto-Align Start");
 
-          Scan_AllRange_TwoWay(2, 8, 125, AA_ScanFinal_Scan_Delay_X_A, 0, 100, StopValue, 500, 2, "Z Scan, Trip_"); //steps:150
-          // Scan_AllRange_TwoWay(2, 8, 60, 60, 0, 100, StopValue, 500, 2, "Z Scan, Trip_"); //steps:150
+          Scan_AllRange_TwoWay(2, 8, 125, AA_ScanFinal_Scan_Delay_X_A, 0, 100, StopValue, 500, 2, "Z Scan, Trip_");  //--Z--
           CMDOutput("%:");
 
           if (isStop)
             true;
 
           CMDOutput("AS");
-          // Serial.println("Auto-Align Start");
-
-          Scan_AllRange_TwoWay(1, 7, 20, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip_"); //steps:350
-          // Scan_AllRange_TwoWay(1, 7, 10, 60, 0, 120, StopValue, 500, 2, "Y Scan, Trip_"); //steps:350
+          // K_OK = Scan_AllRange_TwoWay(1, 7, 20, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip_"); //Fast
+          K_OK = Scan_AllRange_TwoWay(1, 5, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 20, StopValue, 100, 2, "Y Scan, Trip_"); //Slow
           CMDOutput("%:");
+
+          if (!K_OK)
+          {
+            CMDOutput("AS");
+            // K_OK = Scan_AllRange_TwoWay(1, 7, 20, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip_");//Fast
+            K_OK = Scan_AllRange_TwoWay(1, 5, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 20, StopValue, 100, 2, "Y Scan, Trip_"); //Slow
+            CMDOutput("%:");
+          }
+
+          // CMDOutput("AS");
+          // Scan_AllRange_TwoWay(1, 7, 20, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip_");
+          // CMDOutput("%:");
 
           if (isStop)
             true;
 
           CMDOutput("AS");
-          // Serial.println("Auto-Align Start");
 
-          Scan_AllRange_TwoWay(0, 8, 22, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "X Scan, Trip_"); //steps:350
-          // Scan_AllRange_TwoWay(0, 8, 10, 60, 0, 120, StopValue, 500, 2, "X Scan, Trip_"); //steps:350
+          // Scan_AllRange_TwoWay(0, 8, 22, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "X Scan, Trip_"); //steps:350
+          Fine_Scan(1, false); //Q Scan X
           CMDOutput("%:");
 
           if (isStop)
@@ -4356,11 +4464,13 @@ int Function_Excecutation(String cmd, int cmd_No)
 
           digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
 
-          Serial.println("Auto Align End");
+          MSGOutput("Auto Align End");
 
           isLCD = true;
           LCD_Update_Mode = 0;
           LCD_PageNow = 100;
+          updateUI(pre_LCD_Page_index);
+          AQ_Scan_Compensation_Steps_Z_A = ReadInfoEEPROM(160, 8).toInt();
         }
         cmd_No = 0;
         break;
@@ -4388,20 +4498,20 @@ int Function_Excecutation(String cmd, int cmd_No)
 
           AutoCuring_Best_IL = Cal_PD_Input_IL(Get_PD_Points);
 
-          StopValue = AutoCuring_Best_IL; //0 dB
+          StopValue = AutoCuring_Best_IL;
 
           Z_ScanSTP = 125; //180
-
-          Serial.println("Auto-Curing");
-          CMDOutput("AQ"); // Auto_Curing Start
+          MSGOutput("Auto-Curing");
+          CMDOutput("AQ");                             // Auto_Curing Start
+          CMDOutput("QT" + String(AQ_Total_TimeSpan)); // Auto_Curing Start
 
           while (true)
           {
             PD_Now = Cal_PD_Input_IL(Get_PD_Points);
             Q_Time = ((millis() - time_curing_0) / 1000);
-            Serial.println("Curing Time:" + String(Q_Time) + " s");
-            Serial.println("Threshold: " + String(AutoCuring_Best_IL - Acceptable_Delta_IL) + ", Now: " + String(PD_Now));
-            Serial.println("PD_Power:" + String(PD_Now)); //dB
+            MSGOutput("Curing Time:" + String(Q_Time) + " s");
+            // MSGOutput("Threshold: " + String(AutoCuring_Best_IL - Acceptable_Delta_IL) + ", Now: " + String(PD_Now));
+            MSGOutput("PD_Power:" + String(PD_Now)); //dB
 
             digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
             delay(5);
@@ -4409,9 +4519,9 @@ int Function_Excecutation(String cmd, int cmd_No)
             if (Serial.available())
               cmd = Serial.readString();
 
-            // Serial.println("ButtonSelected: " + String(ButtonSelected));
+            // MSGOutput("ButtonSelected: " + String(ButtonSelected));
 
-            // Serial.println("cmd in Q loop: " + String(cmd));
+            // MSGOutput("cmd in Q loop: " + String(cmd));
 
             cmd_No = Function_Classification(cmd, ButtonSelected);
 
@@ -4419,6 +4529,7 @@ int Function_Excecutation(String cmd, int cmd_No)
 
             isLCD = true;
             LCD_Update_Mode = 2;
+            updateUI(pre_LCD_Page_index);
             delay(1000); //default: 700
 
             if (isStop)
@@ -4451,21 +4562,21 @@ int Function_Excecutation(String cmd, int cmd_No)
               //IL Stable Time ,  70 secs,  curing time threshold , 12.5 mins
               if (time_curing_2 - time_curing_1 > 70000 && Q_Time >= 800) // 800
               {
-                Serial.println("IL Stable - Stop Auto Curing");
+                MSGOutput("IL Stable - Stop Auto Curing");
                 isStop = true;
                 break;
               }
               //Total curing time , 14 mins, 840s
-              else if (Q_Time > 840)
+              else if (Q_Time >= AQ_Total_TimeSpan - 1)
               {
-                Serial.println("Over Limit Curing Time - Stop Auto Curing");
+                MSGOutput("Over Limit Curing Time - Stop Auto Curing");
                 isStop = true;
                 break;
               }
 
               if (isILStable && (Q_Time) >= 800) //800
               {
-                Serial.println("IL Stable in Scan - Stop Auto Curing");
+                MSGOutput("IL Stable in Scan - Stop Auto Curing");
                 break;
               }
             }
@@ -4479,23 +4590,23 @@ int Function_Excecutation(String cmd, int cmd_No)
               if (Q_State == 2)
               {
                 Z_ScanSTP = 125; //60
-                Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
+                MSGOutput("Update Z Scan Step: " + String(Z_ScanSTP));
               }
               else if (Q_State == 3)
               {
                 Z_ScanSTP = 70; //45
-                Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
+                MSGOutput("Update Z Scan Step: " + String(Z_ScanSTP));
               }
               else if (Q_State == 4)
               {
                 Z_ScanSTP = 50; //45
-                Serial.println("Update Z Scan Step: " + String(Z_ScanSTP));
+                MSGOutput("Update Z Scan Step: " + String(Z_ScanSTP));
               }
 
               if (Q_Time > 540)
               {
                 Acceptable_Delta_IL = 0.25; // Target IL changed
-                Serial.println("Update Scan Condition: " + String(Acceptable_Delta_IL));
+                MSGOutput("Update Scan Condition: " + String(Acceptable_Delta_IL));
               }
             }
 
@@ -4509,11 +4620,11 @@ int Function_Excecutation(String cmd, int cmd_No)
             else
             {
               // CMDOutput("AS");
-              // Serial.println("Auto-Align Start");
+              // MSGOutput("Auto-Align Start");
 
               time_curing_3 = millis();
               Q_Time = (time_curing_3 - time_curing_0) / 1000;
-              Serial.println("Auto-Curing Time: " + String(Q_Time) + " s");
+              MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
 
               //Q Scan
               if (true)
@@ -4524,7 +4635,7 @@ int Function_Excecutation(String cmd, int cmd_No)
                 {
                   Fine_Scan(1, false); //Q Scan X
 
-                  Serial.println("X PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
+                  MSGOutput("X PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
 
                   if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
                     Fine_Scan(1, false); //Q Scan X
@@ -4532,19 +4643,19 @@ int Function_Excecutation(String cmd, int cmd_No)
 
                 time_curing_3 = millis();
                 Q_Time = (time_curing_3 - time_curing_0) / 1000;
-                Serial.println("Auto-Curing Time: " + String(Q_Time) + " s");
+                MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
 
                 if (isStop)
                   break;
 
                 PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-                Serial.println("Q_State: " + String(Q_State));
+                MSGOutput("Q_State: " + String(Q_State));
 
                 if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL) || Q_State == 1)
                 {
                   Fine_Scan(2, false); //Q Scan Y
 
-                  Serial.println("Y PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
+                  MSGOutput("Y PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
 
                   if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
                     Fine_Scan(2, false); //Q Scan Y
@@ -4552,7 +4663,7 @@ int Function_Excecutation(String cmd, int cmd_No)
 
                 time_curing_3 = millis();
                 Q_Time = (time_curing_3 - time_curing_0) / 1000;
-                Serial.println("Auto-Curing Time: " + String(Q_Time) + " s");
+                MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
 
                 if (isStop)
                   break;
@@ -4572,7 +4683,7 @@ int Function_Excecutation(String cmd, int cmd_No)
               }
 
               PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-              Serial.println("Q_State: " + String(Q_State));
+              MSGOutput("Q_State: " + String(Q_State));
 
               if (abs(PD_Before - PD_Now) < 0.3 && (time_curing_3 - time_curing_0) > 750000)
               {
@@ -4580,7 +4691,7 @@ int Function_Excecutation(String cmd, int cmd_No)
 
                 if (IL_stable_count > 4)
                 {
-                  Serial.println("IL stable to break");
+                  MSGOutput("IL stable to break");
                   break;
                 }
               }
@@ -4591,20 +4702,21 @@ int Function_Excecutation(String cmd, int cmd_No)
           }
 
           time_curing_3 = millis();
-          Serial.println("Total Auto-Curing Time: " + String((time_curing_3 - time_curing_0) / 1000) + " s");
+          MSGOutput("Total Auto-Curing Time: " + String((time_curing_3 - time_curing_0) / 1000) + " s");
 
           StopValue = Target_IL;
           digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
 
-          String eepromString = ReadInfoEEPROM(40, 8);                              //Reading z backlash from EEPROM
-          Serial.println("Reset Z backlash from EEPROM: " + ReadInfoEEPROM(40, 8)); //(start_position, data_length)
+          String eepromString = ReadInfoEEPROM(40, 8);                         //Reading z backlash from EEPROM
+          MSGOutput("Reset Z backlash from EEPROM: " + ReadInfoEEPROM(40, 8)); //(start_position, data_length)
           Z_backlash = eepromString.toInt();
 
           isLCD = true;
           LCD_Update_Mode = 100;
-          Serial.println("LCD Re-Start");
+          updateUI(pre_LCD_Page_index);
+          MSGOutput("LCD Re-Start");
 
-          Serial.println("Auto Q End");
+          MSGOutput("Auto Q End");
         }
         cmd_No = 0;
         break;
@@ -4711,7 +4823,7 @@ int Function_Excecutation(String cmd, int cmd_No)
         break;
 
       case 51: /* Get ID */
-        Serial.println(ReadInfoEEPROM(120, 8));
+        Serial.println(ReadInfoEEPROM(8, 8));
         cmd_No = 0;
         break;
       }
@@ -4729,8 +4841,6 @@ int Function_Excecutation(String cmd, int cmd_No)
           MotorCC = MotorCC_Z;
           Move_Motor_Cont(Z_DIR_Pin, Z_STP_Pin, false, 400, delayBetweenStep_Z);
           MotorCC_Z = false;
-
-          // DataOutput();
 
           if (cmd == "")
           {
@@ -4999,36 +5109,41 @@ void BLE_Function(String cmd)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-bool isWiFiConnected = false;
+// bool isWiFiConnected = false;
 void CMDOutput(String cmd)
 {
   String msg = "CMD::" + cmd;
   Serial.println(msg);
 
-  // Check WiFi connection status
-  if (WiFi.status() == WL_CONNECTED)
+  if (isWiFiConnected)
   {
-    // Data = ServerIP + "?" + ID + "=" + msg;
-    // httpTestRequest(Data.c_str()); //Send message to server
     httpTestRequest(ServerIP.c_str(), msg.c_str());
+  }
 
-    isWiFiConnected = true;
-  }
-  else
-  {
-    if (isWiFiConnected)
-    {
-      Serial.println("WiFi Disconnected");
-      isWiFiConnected = false;
-    }
-  }
+  // Check WiFi connection status
+  // if (WiFi.status() == WL_CONNECTED)
+  // {
+  //   // Data = ServerIP + "?" + ID + "=" + msg;
+  //   // httpTestRequest(Data.c_str()); //Send message to server
+  //   httpTestRequest(ServerIP.c_str(), msg.c_str());
+
+  //   isWiFiConnected = true;
+  // }
+  // else
+  // {
+  //   if (isWiFiConnected)
+  //   {
+  //     Serial.println("WiFi Disconnected");
+  //     isWiFiConnected = false;
+  //   }
+  // }
 }
 
 void DataOutput()
 {
   double IL = Cal_PD_Input_IL(1);
-  // Serial.println("Position:" + String(X_Pos_Now) + "," + String(Y_Pos_Now) + "," + String(Z_Pos_Now) + "," + String(IL));
-  MSGOutput("Position:" + String(X_Pos_Now) + "," + String(Y_Pos_Now) + "," + String(Z_Pos_Now) + "," + String(IL));
+  Serial.println("Position:" + String(X_Pos_Now) + "," + String(Y_Pos_Now) + "," + String(Z_Pos_Now) + "," + String(IL));
+  // MSGOutput("Position:" + String(X_Pos_Now) + "," + String(Y_Pos_Now) + "," + String(Z_Pos_Now) + "," + String(IL));
 }
 
 void DataOutput(bool isIL)
@@ -5085,21 +5200,25 @@ void MSGOutput(String msg)
   Serial.println(msg);
 
   // Check WiFi connection status
-  if (WiFi.status() == WL_CONNECTED)
+  if (isWiFiConnected)
   {
-    // Data = ServerIP + "?" + ID + "=" + msg;
-    // httpTestRequest(Data.c_str()); //Send message to server
-
     httpTestRequest(ServerIP.c_str(), msg.c_str());
+  }
+  // if (WiFi.status() == WL_CONNECTED)
+  // {
+  //   // Data = ServerIP + "?" + ID + "=" + msg;
+  //   // httpTestRequest(Data.c_str()); //Send message to server
 
-    isWiFiConnected = true;
-  }
-  else
-  {
-    if (isWiFiConnected)
-    {
-      Serial.println("WiFi Disconnected");
-      isWiFiConnected = false;
-    }
-  }
+  //   httpTestRequest(ServerIP.c_str(), msg.c_str());
+
+  //   isWiFiConnected = true;
+  // }
+  // else
+  // {
+  //   if (isWiFiConnected)
+  //   {
+  //     Serial.println("WiFi Disconnected");
+  //     isWiFiConnected = false;
+  //   }
+  // }
 }
