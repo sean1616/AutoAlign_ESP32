@@ -1743,6 +1743,7 @@ void setup()
     // Serial.printf("EEPROM(%d) - %e\r\n", String(i), eepromString);
   }
 
+  ID = ReadInfoEEPROM(8, 8);
   MSGOutput("Board ID: " + ReadInfoEEPROM(8, 8)); //pre - 120
 
   eepromString = ReadInfoEEPROM(0, 8); //Reading EEPROM(int start_position, int data_length)
@@ -4808,7 +4809,7 @@ int Function_Classification(String cmd, int ButtonSelected)
     //Set Board ID
     else if (Contains(cmd, "ID#"))
     {
-      cmd.remove(0, 2);
+      cmd.remove(0, 3);
       Serial.println("Set ID: " + WR_EEPROM(8, cmd));
     }
 
