@@ -27,7 +27,8 @@ const char *serverNameData = "http://192.168.4.1/Data";
 
 bool isWiFiConnected = false;
 
-String ID = "#003";
+String ID = "003";
+String Station_ID = "A00";
 
 // Create AsyncWebServer object on port 80
 // AsyncWebServer server(80);
@@ -148,10 +149,10 @@ int AA_ScanFinal_Scan_Steps_Y_A = 20;
 int AA_ScanFinal_Scan_Steps_X_A = 20;
 
 int AQ_Scan_Compensation_Steps_Z_A = 12;
-int AQ_Scan_Steps_Z_A = 30;  //125
-int AQ_Scan_Steps_Z_B = 30;  //120
-int AQ_Scan_Steps_Z_C = 35;   //70
-int AQ_Scan_Steps_Z_D = 50;   //50
+int AQ_Scan_Steps_Z_A = 40;  //125, 30
+int AQ_Scan_Steps_Z_B = 40;  //120, 30
+int AQ_Scan_Steps_Z_C = 45;   //70, 35
+int AQ_Scan_Steps_Z_D = 50;   //50, 50
 
 int AA_ScanFinal_Scan_Delay_X_A = 100;
 int AA_ScanFinal_Scan_Delay_Y_A = 60;
@@ -1736,20 +1737,22 @@ void setup()
 
   String eepromString;
 
-  for (int i = 0; i < 169; i = i + 8)
+  for (int i = 0; i < 504; i = i + 8)
   {
     eepromString = ReadInfoEEPROM(i, 8); //Reading EEPROM(int start_position, int data_length)
     MSGOutput("EEPROM(" + String(i) + ") - " + eepromString);
-    // Serial.printf("EEPROM(%d) - %e\r\n", String(i), eepromString);
   }
-
-  ID = ReadInfoEEPROM(8, 8);
-  MSGOutput("Board ID: " + ReadInfoEEPROM(8, 8)); //pre - 120
 
   eepromString = ReadInfoEEPROM(0, 8); //Reading EEPROM(int start_position, int data_length)
   ref_Dac = eepromString.toDouble();
   ref_IL = ILConverter(ref_Dac);
   MSGOutput("Ref IL: " + String(ref_IL));
+
+  ID = ReadInfoEEPROM(8, 8);
+  MSGOutput("Board ID: " + ReadInfoEEPROM(8, 8)); 
+
+  Station_ID = ReadInfoEEPROM(16, 8);
+  MSGOutput("Station ID: " + ReadInfoEEPROM(16, 8)); 
 
   eepromString = ReadInfoEEPROM(24, 8);
   X_backlash = eepromString.toInt();
@@ -1787,6 +1790,18 @@ void setup()
 
   AA_ScanFinal_Scan_Delay_X_A = ReadInfoEEPROM(80, 8).toInt();
   MSGOutput("AA_ScanFinal_Scan_Delay_X_A: " + String(AA_ScanFinal_Scan_Delay_X_A));
+
+  AQ_Scan_Steps_Z_A = ReadInfoEEPROM(176, 8).toInt();
+  MSGOutput("AQ_Scan_Steps_Z_A: " + String(AQ_Scan_Steps_Z_A));
+
+  AQ_Scan_Steps_Z_B = ReadInfoEEPROM(184, 8).toInt();
+  MSGOutput("AQ_Scan_Steps_Z_B: " + String(AQ_Scan_Steps_Z_B));
+
+  AQ_Scan_Steps_Z_C = ReadInfoEEPROM(192, 8).toInt();
+  MSGOutput("AQ_Scan_Steps_Z_C: " + String(AQ_Scan_Steps_Z_C));
+
+  AQ_Scan_Steps_Z_D = ReadInfoEEPROM(200, 8).toInt();
+  MSGOutput("AQ_Scan_Steps_Z_D: " + String(AQ_Scan_Steps_Z_D));
 
   isLCD = true;
   LCD_Update_Mode = 0;
@@ -4534,7 +4549,7 @@ int Function_Classification(String cmd, int ButtonSelected)
       digitalWrite(Tablet_PD_mode_Trigger_Pin, true); //false is PD mode, true is Servo mode
     }
 
-    //Set auto align Parameter
+    //Set auto-align / auto-curing Parameter
     else if (Contains(cmd, "Set::"))
     {
       cmd.remove(0, 5);
@@ -4627,6 +4642,27 @@ int Function_Classification(String cmd, int ButtonSelected)
       {
         AA_ScanFinal_Scan_Delay_X_A = cmd.toInt();
         Serial.println("Write EEPROM AA_ScanFinal_Scan_Delay_X_A: " + WR_EEPROM(80, cmd));
+      }
+
+      else if (ParaName == "AQ_Scan_Steps_Z_A")
+      {
+        AQ_Scan_Steps_Z_A = cmd.toInt();
+        Serial.println("Write EEPROM AQ_Scan_Steps_Z_A: " + WR_EEPROM(176, cmd));
+      }
+      else if (ParaName == "AQ_Scan_Steps_Z_B")
+      {
+        AQ_Scan_Steps_Z_B = cmd.toInt();
+        Serial.println("Write EEPROM AQ_Scan_Steps_Z_B: " + WR_EEPROM(184, cmd));
+      }
+      else if (ParaName == "AQ_Scan_Steps_Z_C")
+      {
+        AQ_Scan_Steps_Z_C = cmd.toInt();
+        Serial.println("Write EEPROM AQ_Scan_Steps_Z_C: " + WR_EEPROM(192, cmd));
+      }
+      else if (ParaName == "AQ_Scan_Steps_Z_D")
+      {
+        AQ_Scan_Steps_Z_D = cmd.toInt();
+        Serial.println("Write EEPROM AQ_Scan_Steps_Z_D: " + WR_EEPROM(200, cmd));
       }
     }
 
@@ -4810,13 +4846,26 @@ int Function_Classification(String cmd, int ButtonSelected)
     else if (Contains(cmd, "ID#"))
     {
       cmd.remove(0, 3);
-      Serial.println("Set ID: " + WR_EEPROM(8, cmd));
+      Serial.println("Set Board ID: " + WR_EEPROM(8, cmd));
     }
 
-    //Get ID
+    //Get Board ID
     else if (cmd == "ID?")
     {
       Serial.println(ReadInfoEEPROM(8, 8));
+    }
+
+    //Set Station ID
+    else if (Contains(cmd, "ID_Station#"))
+    {
+      cmd.remove(0, 11);
+      Serial.println("Set Station ID: " + WR_EEPROM(16, cmd));
+    }
+
+    //Get Station ID
+    else if (cmd == "ID_Station?")
+    {
+      Serial.println(ReadInfoEEPROM(16, 8));
     }
 
     //Set Server ID
