@@ -2139,6 +2139,9 @@ bool Fine_Scan(int axis, bool Trip2Stop)
 
       break;
     }
+
+    if(Q_Time !=0)
+      MSGOutput("Scan at QTime:" + String(Q_Time));
   }
   //Case 4: all actions should be excuted
   else if (axis == 4)
@@ -3721,7 +3724,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     digitalWrite(DIR_Pin, MotorCC);
     delay(5);
 
-    MSGOutput("Best in Trip_2 : " + String(Pos_Best_Trip2));
+    MSGOutput("Best in Trip_2 : " + String(Pos_Best_Trip2)); //------------Best in Trip_2----------------
 
     if (XYZ == 2)
       Pos_Best_Trip2 = Pos_Best_Trip2 - AQ_Scan_Compensation_Steps_Z_A;
@@ -3770,8 +3773,13 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     if (deltaPos < motorStep * 2)
     {
       MSGOutput("Jump Backlesh 1");
+     
+      step(STP_Pin, (backlash), delayBetweenStep+20);
+      delay(stableDelay + 200);
 
-      return false;
+      deltaPos = abs(Pos_Best_Trip2 - Get_Position(XYZ)); //Two curves are totally different, then back to best pos in trip 2
+
+//      return false;
     }
 
     if (isStop)
@@ -5208,7 +5216,7 @@ int Function_Excecutation(String cmd, int cmd_No)
 
               if (Q_Time > 540)
               {
-                Acceptable_Delta_IL = 0.25; // Target IL changed
+                Acceptable_Delta_IL = 0.2; // Target IL changed 0.25
                 MSGOutput("Update Scan Condition: " + String(Acceptable_Delta_IL));
               }
             }
@@ -5324,6 +5332,8 @@ int Function_Excecutation(String cmd, int cmd_No)
           MSGOutput("LCD Re-Start");
 
           MSGOutput("Auto Q End");
+
+          Q_Time = 0;
         }
         cmd_No = 0;
         break;
