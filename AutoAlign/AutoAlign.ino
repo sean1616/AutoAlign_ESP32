@@ -159,6 +159,58 @@ int AA_ScanFinal_Scan_Delay_Y_A = 60;
 
 int AQ_Total_TimeSpan = 840;
 
+uint16_t FS_Count_X = 8;
+uint16_t FS_Steps_X = 35;
+uint16_t FS_Stable_X = 5;
+uint16_t FS_DelaySteps_X = 80;
+uint16_t FS_Avg_X = 500;
+uint16_t FS_Count_Y = 8;
+uint16_t FS_Steps_Y = 20;
+uint16_t FS_Stable_Y = 5;
+uint16_t FS_DelaySteps_Y = 120;
+uint16_t FS_Avg_Y = 500;
+uint16_t FS_Count_Z = 8;
+uint16_t FS_Steps_Z = 125;
+uint16_t FS_Stable_Z = 5;
+uint16_t FS_DelaySteps_Z = 100;
+uint16_t FS_Avg_Z = 500;
+
+uint16_t EP_PD_Ref = 0;
+uint16_t EP_Board_ID = 8;
+uint16_t EP_Station_ID = 16;
+uint16_t EP_X_backlash = 24;
+uint16_t EP_Y_backlash = 32;
+uint16_t EP_Z_backlash = 40;
+uint16_t EP_delayBetweenStep_X = 48;
+uint16_t EP_delayBetweenStep_Y = 56;
+uint16_t EP_delayBetweenStep_Z = 64;
+uint16_t EP_Target_IL = 72;
+uint16_t EP_AA_ScanFinal_Scan_Delay_X_A = 80;
+uint16_t EP_Server_ID = 88;
+uint16_t EP_Server_Password = 128;
+uint16_t EP_AQ_Scan_Compensation_Steps_Z_A = 160;
+uint16_t EP_AQ_Total_TimeSpan = 168;
+uint16_t EP_AQ_Scan_Steps_Z_A = 176;
+uint16_t EP_AQ_Scan_Steps_Z_B = 184;
+uint16_t EP_AQ_Scan_Steps_Z_C = 192;
+uint16_t EP_AQ_Scan_Steps_Z_D = 200;
+uint16_t EP_FS_Count_X = 240;
+uint16_t EP_FS_Steps_X = 248;
+uint16_t EP_FS_Stable_X = 256;
+uint16_t EP_FS_DelaySteps_X = 264;
+uint16_t EP_FS_Avg_X = 272;
+uint16_t EP_FS_Count_Y = 280;
+uint16_t EP_FS_Steps_Y = 288;
+uint16_t EP_FS_Stable_Y = 296;
+uint16_t EP_FS_DelaySteps_Y = 304;
+uint16_t EP_FS_Avg_Y = 312;
+uint16_t EP_FS_Count_Z = 320;
+uint16_t EP_FS_Steps_Z = 328;
+uint16_t EP_FS_Stable_Z = 336;
+uint16_t EP_FS_DelaySteps_Z = 344;
+uint16_t EP_FS_Avg_Z = 352;
+
+
 double averagePDInput = 0;
 
 double ref_Dac = 0; //PD reference
@@ -1737,7 +1789,7 @@ void setup()
 
   String eepromString;
 
-  for (int i = 0; i < 504; i = i + 8)
+  for (int i = 0; i < 511; i = i + 8)
   {
     eepromString = ReadInfoEEPROM(i, 8); //Reading EEPROM(int start_position, int data_length)
     MSGOutput("EEPROM(" + String(i) + ") - " + eepromString);
@@ -1802,6 +1854,53 @@ void setup()
 
   AQ_Scan_Steps_Z_D = ReadInfoEEPROM(200, 8).toInt();
   MSGOutput("AQ_Scan_Steps_Z_D: " + String(AQ_Scan_Steps_Z_D));
+
+  FS_Count_X = ReadInfoEEPROM(EP_FS_Count_X, 8).toInt();
+  MSGOutput("FS_Count_X: " + String(FS_Count_X));
+
+  FS_Steps_X = ReadInfoEEPROM(EP_FS_Steps_X, 8).toInt();
+  MSGOutput("FS_Steps_X: " + String(FS_Steps_X));
+
+  FS_Stable_X = ReadInfoEEPROM(EP_FS_Stable_X, 8).toInt();
+  MSGOutput("FS_Stable_X: " + String(FS_Stable_X));
+
+  FS_DelaySteps_X = ReadInfoEEPROM(EP_FS_DelaySteps_X, 8).toInt();
+  MSGOutput("FS_DelaySteps_X: " + String(FS_DelaySteps_X));
+
+  FS_Avg_X = ReadInfoEEPROM(EP_FS_Avg_X, 8).toInt();
+  MSGOutput("FS_Avg_X: " + String(FS_Avg_X));
+
+  FS_Count_Y = ReadInfoEEPROM(EP_FS_Count_Y, 8).toInt();
+  MSGOutput("FS_Count_Y: " + String(FS_Count_Y));
+
+  FS_Steps_Y = ReadInfoEEPROM(EP_FS_Steps_Y, 8).toInt();
+  MSGOutput("FS_Steps_Y: " + String(FS_Steps_Y));
+
+  FS_Stable_Y = ReadInfoEEPROM(EP_FS_Stable_Y, 8).toInt();
+  MSGOutput("FS_Stable_Y: " + String(FS_Stable_Y));
+
+  FS_DelaySteps_Y = ReadInfoEEPROM(EP_FS_DelaySteps_Y, 8).toInt();
+  MSGOutput("FS_DelaySteps_Y: " + String(FS_DelaySteps_Y));
+
+  FS_Avg_Y = ReadInfoEEPROM(EP_FS_Avg_Y, 8).toInt();
+  MSGOutput("FS_Avg_Y: " + String(FS_Avg_Y));
+
+  FS_Count_Z = ReadInfoEEPROM(EP_FS_Count_Z, 8).toInt();
+  MSGOutput("FS_Count_Z: " + String(FS_Count_Z));
+
+  FS_Steps_Z = ReadInfoEEPROM(EP_FS_Steps_Z, 8).toInt();
+  MSGOutput("FS_Steps_Z: " + String(FS_Steps_Z));
+
+  FS_Stable_Z = ReadInfoEEPROM(EP_FS_Stable_Z, 8).toInt();
+  MSGOutput("FS_Stable_Z: " + String(FS_Stable_Z));
+
+  FS_DelaySteps_Z = ReadInfoEEPROM(EP_FS_DelaySteps_Z, 8).toInt();
+  MSGOutput("FS_DelaySteps_Z: " + String(FS_DelaySteps_Z));
+
+  FS_Avg_Z = ReadInfoEEPROM(EP_FS_Avg_Z, 8).toInt();
+  MSGOutput("FS_Avg_Z: " + String(FS_Avg_Z));
+
+
 
   isLCD = true;
   LCD_Update_Mode = 0;
@@ -3533,7 +3632,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
   MotorCC = !MotorCC; //Reverse direction
   digitalWrite(DIR_Pin, MotorCC);
-  delay(1);
+  delay(5);
 
   delay(stableDelay + 100); //Trip_1 --------------------------------------------------------------------------------------
 
@@ -3632,10 +3731,11 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   long Pos_Best_Trip2 = 0;
   long Pos_Ini_Trip2 = 0;
 
+  //Trip_2 --------------------------------------------------------------------------------------
   if (trip = Trips)
   {
     CMDOutput("~:" + msg + String(trip));
-    // Serial.println("~" + msg + String(trip)); //Trip_2 --------------------------------------------------------------------------------------
+    // Serial.println("~" + msg + String(trip)); 
 
     IL_Best_Trip2 = PD_Now;
     Pos_Best_Trip2 = Get_Position(XYZ);
@@ -4671,6 +4771,84 @@ int Function_Classification(String cmd, int ButtonSelected)
       {
         AQ_Scan_Steps_Z_D = cmd.toInt();
         Serial.println("Write EEPROM AQ_Scan_Steps_Z_D: " + WR_EEPROM(200, cmd));
+      }
+
+      else if (ParaName == "FS_Count_X")
+      {
+        FS_Count_X = cmd.toInt();
+        Serial.println("Write EEPROM FS_Count_X: " + WR_EEPROM(EP_FS_Count_X, cmd));
+      }
+      else if (ParaName == "FS_Steps_X")
+      {
+        FS_Steps_X = cmd.toInt();
+        Serial.println("Write EEPROM FS_Steps_X: " + WR_EEPROM(EP_FS_Steps_X, cmd));
+      }
+      else if (ParaName == "FS_Stable_X")
+      {
+        FS_Stable_X = cmd.toInt();
+        Serial.println("Write EEPROM FS_Stable_X: " + WR_EEPROM(EP_FS_Stable_X, cmd));
+      }
+      else if (ParaName == "FS_DelaySteps_X")
+      {
+        FS_DelaySteps_X = cmd.toInt();
+        Serial.println("Write EEPROM FS_DelaySteps_X: " + WR_EEPROM(EP_FS_DelaySteps_X, cmd));
+      }
+      else if (ParaName == "FS_Avg_X")
+      {
+        FS_Avg_X = cmd.toInt();
+        Serial.println("Write EEPROM FS_Avg_X: " + WR_EEPROM(EP_FS_Avg_X, cmd));
+      }
+
+      else if (ParaName == "FS_Count_Y")
+      {
+        FS_Count_Y = cmd.toInt();
+        Serial.println("Write EEPROM FS_Count_Y: " + WR_EEPROM(EP_FS_Count_Y, cmd));
+      }
+      else if (ParaName == "FS_Steps_Y")
+      {
+        FS_Steps_Y = cmd.toInt();
+        Serial.println("Write EEPROM FS_Steps_Y: " + WR_EEPROM(EP_FS_Steps_Y, cmd));
+      }
+      else if (ParaName == "FS_Stable_Y")
+      {
+        FS_Stable_Y = cmd.toInt();
+        Serial.println("Write EEPROM FS_Stable_Y: " + WR_EEPROM(EP_FS_Stable_Y, cmd));
+      }
+      else if (ParaName == "FS_DelaySteps_Y")
+      {
+        FS_DelaySteps_Y = cmd.toInt();
+        Serial.println("Write EEPROM FS_DelaySteps_Y: " + WR_EEPROM(EP_FS_DelaySteps_Y, cmd));
+      }
+      else if (ParaName == "FS_Avg_Y")
+      {
+        FS_Avg_Y = cmd.toInt();
+        Serial.println("Write EEPROM FS_Avg_Y: " + WR_EEPROM(EP_FS_Avg_Y, cmd));
+      }
+
+      else if (ParaName == "FS_Count_Z")
+      {
+        FS_Count_Z = cmd.toInt();
+        Serial.println("Write EEPROM FS_Count_Z: " + WR_EEPROM(EP_FS_Count_Z, cmd));
+      }
+      else if (ParaName == "FS_Steps_Z")
+      {
+        FS_Steps_Z = cmd.toInt();
+        Serial.println("Write EEPROM FS_Steps_Z: " + WR_EEPROM(EP_FS_Steps_Z, cmd));
+      }
+      else if (ParaName == "FS_Stable_Z")
+      {
+        FS_Stable_Z = cmd.toInt();
+        Serial.println("Write EEPROM FS_Stable_Z: " + WR_EEPROM(EP_FS_Stable_Z, cmd));
+      }
+      else if (ParaName == "FS_DelaySteps_Z")
+      {
+        FS_DelaySteps_Z = cmd.toInt();
+        Serial.println("Write EEPROM FS_DelaySteps_Z: " + WR_EEPROM(EP_FS_DelaySteps_Z, cmd));
+      }
+      else if (ParaName == "FS_Avg_Z")
+      {
+        FS_Avg_Z = cmd.toInt();
+        Serial.println("Write EEPROM FS_Avg_Z: " + WR_EEPROM(EP_FS_Avg_Z, cmd));
       }
     }
 
