@@ -2206,6 +2206,7 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       CMDOutput("AS");
       msg = Region + ",Y_Scan,Round_" + String(1) + ",Trip_";
       K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 500, 2, "Y_Scan,Trip_"); //steps:350
+      // Scan_AllRange_TwoWay(1, 6, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 100, StopValue, 600, 2, "Y Scan, Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
@@ -3940,7 +3941,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
         break;
       }
     }
-    else if (deltaPos > 0)
+    else if (deltaPos > 0 && deltaPos < motorStep)
     {
       step(STP_Pin, deltaPos, delayBetweenStep);
       delay(stableDelay);
@@ -5225,38 +5226,43 @@ int Function_Excecutation(String cmd, int cmd_No)
 
           digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
 
+          //------------------------------------------------------------------------------------------------------------------------------Q Scan Z
+
           CMDOutput("AS");
 
-          Scan_AllRange_TwoWay(2, 9, 100, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 600, 2, "Z Scan, Trip_"); //--Z--
+          Scan_AllRange_TwoWay(2, 6, 100, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 600, 2, "Z Scan, Trip_"); //--Z--
           CMDOutput("%:");
 
           if (isStop)
             true;
 
-          CMDOutput("AS");
-          // K_OK = Scan_AllRange_TwoWay(1, 7, 20, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip_"); //Fast
-          K_OK = Scan_AllRange_TwoWay(1, 6, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 100, StopValue, 600, 2, "Y Scan, Trip_"); //Slow
-          CMDOutput("%:");
-
-          if (!K_OK)
-          {
-            CMDOutput("AS");
-            // K_OK = Scan_AllRange_TwoWay(1, 7, 20, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip_");//Fast
-            K_OK = Scan_AllRange_TwoWay(1, 6, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 100, StopValue, 600, 2, "Y Scan, Trip_"); //Slow
-            CMDOutput("%:");
-          }
+          //------------------------------------------------------------------------------------------------------------------------------Q Scan Y
 
           // CMDOutput("AS");
-          // Scan_AllRange_TwoWay(1, 7, 20, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip_");
+          // // K_OK = Scan_AllRange_TwoWay(1, 7, 20, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip_"); //Fast
+          // K_OK = Scan_AllRange_TwoWay(1, 6, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 100, StopValue, 600, 2, "Y Scan, Trip_"); //Slow
           // CMDOutput("%:");
+
+          // if (!K_OK)
+          // {
+          //   CMDOutput("AS");
+          //   // K_OK = Scan_AllRange_TwoWay(1, 7, 20, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip_");//Fast
+          //   K_OK = Scan_AllRange_TwoWay(1, 6, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 100, StopValue, 600, 2, "Y Scan, Trip_"); //Slow
+          //   CMDOutput("%:");
+          // }
+
+           Fine_Scan(2, false); 
+          CMDOutput("%:");
 
           if (isStop)
             true;
+
+          //------------------------------------------------------------------------------------------------------------------------------Q Scan X
 
           CMDOutput("AS");
 
           // Scan_AllRange_TwoWay(0, 8, 22, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "X Scan, Trip_"); //steps:350
-          Fine_Scan(1, false); //Q Scan X
+          Fine_Scan(1, false); 
           CMDOutput("%:");
 
           if (isStop)
