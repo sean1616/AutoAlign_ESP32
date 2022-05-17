@@ -2185,14 +2185,14 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       CMDOutput("AS");
       msg = Region + ",X_Scan,Round_" + String(1) + ",Trip_";
       // K_OK = Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan,Trip_");
-      K_OK = Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 500, 2, "X Scan,Trip_");
+      K_OK = Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Scan,Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
       {
         CMDOutput("AS");
         msg = Region + ",X_Re-Scan,Round_" + String(1) + ",Trip_";
-        Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 500, 2, "X Scan,Trip_");
+        Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Scan,Trip_");
         CMDOutput("%:");
       }
 
@@ -3967,7 +3967,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   double ts = (timer_2 - timer_1) * 0.001;
   CMDOutput("t:" + String(ts, 2));
 
-  if (PD_Now < PD_Best - 4)
+  if (PD_Now < PD_Best - 1.2)
     return false;
   else
     return true;
@@ -5420,8 +5420,10 @@ int Function_Excecutation(String cmd, int cmd_No)
 
               if (Q_Time > 540)
               {
-                Acceptable_Delta_IL = 0.2; // Target IL changed 0.25
-                MSGOutput("Update Scan Condition: " + String(Acceptable_Delta_IL));
+                if( Acceptable_Delta_IL!=0.2 ){
+                  Acceptable_Delta_IL = 0.2; // Target IL changed 0.25
+                  MSGOutput("Update Scan Condition: " + String(Acceptable_Delta_IL));     
+                }
               }
             }
 
