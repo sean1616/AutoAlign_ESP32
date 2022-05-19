@@ -50,8 +50,8 @@ uint8_t LCD_Select_pin = 21;
 
 bool LCD_Encoder_State = false;
 bool LCD_Encoder_LastState = false;
-int LCD_en_count = 0;
-int idx = 0;
+int LCD_en_count = 0, idx = 0;
+int LCD_sub_count = 0, idx_sub = 0;
 int current_selection = 0;
 
 int LCD_Update_Mode = 0;
@@ -1240,12 +1240,14 @@ void LCD_Encoder_Rise()
       }
       else if (PageLevel == 1)
       {
-        if (mainpageIndex == 4)
+        if (mainpageIndex == 4)  //Speed Setting Page
         {
           if (!item_is_selected)
           {
-            if (subpageIndex < (subpage_itemsCount - 1) * 2)
+            if (subpageIndex < (subpage_itemsCount - 1) * 2){
+              LCD_sub_count +=1;
               subpageIndex += 1;
+            }
           }
           else
           {
@@ -1288,8 +1290,10 @@ void LCD_Encoder_Rise()
         {
           if (!item_is_selected)
           {
-            if (subpageIndex > 0)
+            if (subpageIndex > 0){
+              LCD_sub_count-=1;
               subpageIndex -= 1;
+            }
           }
           else
           {
@@ -1317,14 +1321,20 @@ void LCD_Encoder_Rise()
   LCD_Encoder_LastState = LCD_Encoder_State;
 
   idx = LCD_en_count / 2;
-  // if (PageLevel == 1)
-  // {
-  //   if (mainpageIndex == 4)
-  //   {
-  //     if (!item_is_selected)
-  //       subpageIndex = subpageIndex / 2;
-  //   }
-  // }
+
+  if (PageLevel == 1)
+  {
+    if (mainpageIndex == 4)
+    {
+      if (!item_is_selected)
+        subpageIndex = LCD_sub_count / 2;
+
+        if(subpageIndex > 3){
+          subpageIndex = 3;
+          LCD_sub_count = 6;
+        }
+    }
+  }
 
   isLCD = true;
 }
@@ -2183,7 +2193,7 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       PD_Now = Cal_PD_Input_IL(Get_PD_Points);
 
       CMDOutput("AS");
-      msg = Region + ",X_Scan,Round_" + String(1) + ",Trip_";
+      // msg = Region + ",X_Scan,Round_" + String(1) + ",Trip_";
       // K_OK = Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan,Trip_");
       K_OK = Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Scan,Trip_");
       CMDOutput("%:");
@@ -2191,8 +2201,8 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       if (!K_OK)
       {
         CMDOutput("AS");
-        msg = Region + ",X_Re-Scan,Round_" + String(1) + ",Trip_";
-        Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Scan,Trip_");
+        // msg = Region + ",X_Re-Scan,Round_" + String(1) + ",Trip_";
+        Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Re-Scan,Trip_");
         CMDOutput("%:");
       }
 
@@ -2204,16 +2214,16 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
 
       CMDOutput("AS");
-      msg = Region + ",Y_Scan,Round_" + String(1) + ",Trip_";
-      K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 500, 2, "Y_Scan,Trip_"); //steps:350
+      // msg = Region + ",Y_Scan,Round_" + String(1) + ",Trip_";
+      K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 600, 2, "Y Scan,Trip_"); //steps:350
       // Scan_AllRange_TwoWay(1, 6, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 100, StopValue, 600, 2, "Y Scan, Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
       {
         CMDOutput("AS");
-        msg = Region + ",Y_Re-Scan,Round_" + String(1) + ",Trip_";
-        K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 500, 2, "Y_Scan,Trip_");
+        // msg = Region + ",Y_Re-Scan,Round_" + String(1) + ",Trip_";
+        K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 600, 2, "Y Re-Scan,Trip_");
         CMDOutput("%:");
       }
 
@@ -2225,15 +2235,17 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
 
       CMDOutput("AS");
-      msg = Region + ",Z_Scan,Round_" + String(1) + ",Trip_";
-      K_OK = Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 600, 2, "Z_Scan,Trip_");
+      // msg = Region + ",Z_Scan,Round_" + String(1) + ",Trip_";
+      K_OK = Scan_AllRange_TwoWay(2, 7, 80, 0, 0, 80, StopValue, 800, 2, "Z Scan,Trip_");
+      // Scan_AllRange_TwoWay(2, 6, 100, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 600, 2, "Z Scan, Trip_"); //--Z--
+      // Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 600, 2, "Z_Scan,Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
       {
         CMDOutput("AS");
-        msg = Region + ",Z_Re-Scan, Round_" + String(1) + ",Trip_";
-        K_OK = Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 600, 2, "Z_Scan,Trip_");
+        // msg = Region + ",Z_Re-Scan, Round_" + String(1) + ",Trip_";
+        K_OK = Scan_AllRange_TwoWay(2, 7, 80, 0, 0, 80, StopValue, 800, 2, "Z Re-Scan,Trip_");
         CMDOutput("%:");
       }
 
@@ -3642,7 +3654,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   digitalWrite(DIR_Pin, MotorCC);
   delay(5);
 
-  delay(stableDelay + 100); //Trip_1 --------------------------------------------------------------------------------------
+  delay(stableDelay + 100); //--------------------------------Trip_1 -----------------------------------------------
 
   // CMDOutput(">>" + msg + String(trip));
   // Serial.println(">>" + msg + String(trip)); //Trip_1
@@ -3678,7 +3690,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
       continue;
     }
 
-    step(STP_Pin, motorStep, delayBetweenStep);
+    step(STP_Pin, motorStep, delayBetweenStep);    
     delay(stableDelay);
 
     PD_Value[i] = Cal_PD_Input_IL(Get_PD_Points);
@@ -3745,7 +3757,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   long Pos_Best_Trip2 = 0;
   long Pos_Ini_Trip2 = 0;
 
-  //Trip_2 --------------------------------------------------------------------------------------
+  //------------------------------------Trip_2 ------------------------------------------------------------
   if (trip = Trips)
   {
     CMDOutput("~:" + msg + String(trip));
@@ -3828,7 +3840,8 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
   trip++;
   CMDOutput("~:" + msg + String(trip));
-  // Serial.println("~" + msg + String(trip)); //Trip_3 --------------------------------------------------------------------------------------
+
+  //------------------------------------Trip_3 -------------------------------------------------------
 
   double PD_Best = 0;
   int deltaPos = 0;
@@ -3924,6 +3937,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     if (deltaPos >= motorStep)
     {
       deltaPos = deltaPos - motorStep;
+
       step(STP_Pin, motorStep, delayBetweenStep);
       delay(stableDelay);
       PD_Now = Cal_PD_Input_IL(Get_PD_Points);
@@ -5228,9 +5242,11 @@ int Function_Excecutation(String cmd, int cmd_No)
 
           //------------------------------------------------------------------------------------------------------------------------------Q Scan Z
 
-          CMDOutput("AS");
+          // CMDOutput("AS");
 
-          Scan_AllRange_TwoWay(2, 6, 100, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 600, 2, "Z Scan, Trip_"); //--Z--
+          // Scan_AllRange_TwoWay(2, 6, 100, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 600, 2, "Z Scan, Trip_"); //--Z--
+          Fine_Scan(3, false); 
+
           CMDOutput("%:");
 
           if (isStop)
@@ -5420,8 +5436,8 @@ int Function_Excecutation(String cmd, int cmd_No)
 
               if (Q_Time > 540)
               {
-                if( Acceptable_Delta_IL!=0.2 ){
-                  Acceptable_Delta_IL = 0.2; // Target IL changed 0.25
+                if( Acceptable_Delta_IL != 0.15 ){
+                  Acceptable_Delta_IL = 0.15; // Target IL changed 0.25
                   MSGOutput("Update Scan Condition: " + String(Acceptable_Delta_IL));     
                 }
               }
@@ -5554,6 +5570,57 @@ int Function_Excecutation(String cmd, int cmd_No)
           MSGOutput("Auto Q End");
 
           Q_Time = 0;
+        }
+        cmd_No = 0;
+        break;
+
+      case 5: /* Fine Scan X */
+        if (!btn_isTrigger){
+          isLCD = true;
+          PageLevel = 102;
+          updateUI(PageLevel);
+
+          Fine_Scan(1, false); 
+
+          MSGOutput("Auto Align End");
+
+          isLCD = true;
+          PageLevel = 0;
+          updateUI(PageLevel);
+        }
+        cmd_No = 0;
+        break;
+
+      case 6: /* Fine Scan Y */
+        if (!btn_isTrigger){
+          isLCD = true;
+          PageLevel = 102;
+          updateUI(PageLevel);
+
+          Fine_Scan(2, false); 
+
+          MSGOutput("Auto Align End");
+
+          isLCD = true;
+          PageLevel = 0;
+          updateUI(PageLevel);
+        }
+        cmd_No = 0;
+        break;
+
+      case 7: /* Fine Scan Z */
+        if (!btn_isTrigger){
+          isLCD = true;
+          PageLevel = 102;
+          updateUI(PageLevel);
+
+          Fine_Scan(3, false); 
+
+          MSGOutput("Auto Align End");
+
+          isLCD = true;
+          PageLevel = 0;
+          updateUI(PageLevel);
         }
         cmd_No = 0;
         break;
