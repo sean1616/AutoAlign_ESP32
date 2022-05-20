@@ -159,21 +159,21 @@ int AA_ScanFinal_Scan_Delay_Y_A = 60;
 
 int AQ_Total_TimeSpan = 840;
 
-uint16_t FS_Count_X = 8;
-uint16_t FS_Steps_X = 35;
-uint16_t FS_Stable_X = 5;
-uint16_t FS_DelaySteps_X = 80;
-uint16_t FS_Avg_X = 500;
+uint16_t FS_Count_X = 7;
+uint16_t FS_Steps_X = 25;
+uint16_t FS_Stable_X = 0;
+uint16_t FS_DelaySteps_X = 50;
+uint16_t FS_Avg_X = 600;
 uint16_t FS_Count_Y = 8;
 uint16_t FS_Steps_Y = 20;
-uint16_t FS_Stable_Y = 5;
+uint16_t FS_Stable_Y = 0;
 uint16_t FS_DelaySteps_Y = 120;
-uint16_t FS_Avg_Y = 500;
-uint16_t FS_Count_Z = 8;
-uint16_t FS_Steps_Z = 125;
-uint16_t FS_Stable_Z = 5;
-uint16_t FS_DelaySteps_Z = 100;
-uint16_t FS_Avg_Z = 500;
+uint16_t FS_Avg_Y = 600;
+uint16_t FS_Count_Z = 7;
+uint16_t FS_Steps_Z = 80;
+uint16_t FS_Stable_Z = 0;
+uint16_t FS_DelaySteps_Z = 80;
+uint16_t FS_Avg_Z = 800;
 
 uint16_t EP_PD_Ref = 0;
 uint16_t EP_Board_ID = 8;
@@ -2193,16 +2193,16 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       PD_Now = Cal_PD_Input_IL(Get_PD_Points);
 
       CMDOutput("AS");
-      // msg = Region + ",X_Scan,Round_" + String(1) + ",Trip_";
       // K_OK = Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan,Trip_");
-      K_OK = Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Scan,Trip_");
+      // K_OK = Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Scan,Trip_");
+      K_OK = Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, 0, FS_DelaySteps_X, StopValue, FS_Avg_X, 2, "X Scan,Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
       {
         CMDOutput("AS");
-        // msg = Region + ",X_Re-Scan,Round_" + String(1) + ",Trip_";
-        Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Re-Scan,Trip_");
+        // Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Re-Scan,Trip_");
+        Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, 0, FS_DelaySteps_X, StopValue, FS_Avg_X, 2, "X Scan,Trip_");
         CMDOutput("%:");
       }
 
@@ -2214,16 +2214,16 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
 
       CMDOutput("AS");
-      // msg = Region + ",Y_Scan,Round_" + String(1) + ",Trip_";
-      K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 600, 2, "Y Scan,Trip_"); //steps:350
       // Scan_AllRange_TwoWay(1, 6, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 100, StopValue, 600, 2, "Y Scan, Trip_");
+      // K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 600, 2, "Y Scan,Trip_"); 
+      K_OK = Scan_AllRange_TwoWay(1, FS_Count_Y, FS_Steps_Y, FS_Stable_Y, 0, FS_DelaySteps_Y, StopValue, FS_Avg_Y, 2, "Y Scan,Trip_"); 
       CMDOutput("%:");
 
       if (!K_OK)
       {
         CMDOutput("AS");
-        // msg = Region + ",Y_Re-Scan,Round_" + String(1) + ",Trip_";
-        K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 600, 2, "Y Re-Scan,Trip_");
+        // Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 600, 2, "Y Re-Scan,Trip_");
+        Scan_AllRange_TwoWay(1, FS_Count_Y, FS_Steps_Y, FS_Stable_Y, 0, FS_DelaySteps_Y, StopValue, FS_Avg_Y, 2, "Y Scan,Trip_"); 
         CMDOutput("%:");
       }
 
@@ -2235,17 +2235,17 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
 
       CMDOutput("AS");
-      // msg = Region + ",Z_Scan,Round_" + String(1) + ",Trip_";
-      K_OK = Scan_AllRange_TwoWay(2, 7, 80, 0, 0, 80, StopValue, 800, 2, "Z Scan,Trip_");
       // Scan_AllRange_TwoWay(2, 6, 100, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 600, 2, "Z Scan, Trip_"); //--Z--
       // Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 600, 2, "Z_Scan,Trip_");
+      // K_OK = Scan_AllRange_TwoWay(2, 7, 80, 0, 0, 80, StopValue, 800, 2, "Z Scan,Trip_");
+      K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, FS_Steps_Z, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, 2, "Z Scan,Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
       {
         CMDOutput("AS");
-        // msg = Region + ",Z_Re-Scan, Round_" + String(1) + ",Trip_";
-        K_OK = Scan_AllRange_TwoWay(2, 7, 80, 0, 0, 80, StopValue, 800, 2, "Z Re-Scan,Trip_");
+        // Scan_AllRange_TwoWay(2, 7, 80, 0, 0, 80, StopValue, 800, 2, "Z Re-Scan,Trip_");
+        Scan_AllRange_TwoWay(2, FS_Count_Z, FS_Steps_Z, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, 2, "Z Scan,Trip_");
         CMDOutput("%:");
       }
 
@@ -3758,10 +3758,13 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   long Pos_Ini_Trip2 = 0;
 
   //------------------------------------Trip_2 ------------------------------------------------------------
-  if (trip = Trips)
+  MSGOutput(" --- Trip 2 --- " );
+  MSGOutput("trip: " + String(trip) );
+  MSGOutput("Trips: " + String(Trips) );
+  
+  if (trip == Trips)
   {
     CMDOutput("~:" + msg + String(trip));
-    // Serial.println("~" + msg + String(trip)); 
 
     IL_Best_Trip2 = PD_Now;
     Pos_Best_Trip2 = Get_Position(XYZ);
@@ -3843,10 +3846,12 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
   //------------------------------------Trip_3 -------------------------------------------------------
 
+  MSGOutput(" --- Trip 3 --- " );
+
   double PD_Best = 0;
   int deltaPos = 0;
 
-  if (IL_Best_Trip2 > IL_Best_Trip1 && (IL_Best_Trip2 - IL_Best_Trip1)> 0.25 )
+  if (IL_Best_Trip2 > IL_Best_Trip1 && (IL_Best_Trip2 - IL_Best_Trip1)> 0.25 && Trips == 2)
   {
     if (isStop)
     {
@@ -3891,6 +3896,30 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     digitalWrite(DIR_Pin, MotorCC);
     delay(5);
   }
+
+  else if (Trips == 1)
+  {
+    MotorCC = !MotorCC; //Reverse direction
+    digitalWrite(DIR_Pin, MotorCC);
+    delay(5);
+
+    MSGOutput("Jump to Trip Initial Pos : " + String(Pos_Best_Trip2));
+    Move_Motor_abs(XYZ, Pos_Ini_Trip1); //Jump to Trip_1 start position
+
+    delay(300); //100
+
+    PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+    DataOutput();
+    DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+
+    MotorCC = !MotorCC; //Reverse direction
+    digitalWrite(DIR_Pin, MotorCC);
+    delay(5);
+
+    deltaPos = abs(Pos_Best_Trip1 - Get_Position(XYZ));
+    MSGOutput("deltaPos : " + String(deltaPos));
+  }
+
   else //------------Best in Trip_1----------------
   {
     MSGOutput("Best in Trip_1 : " + String(Pos_Best_Trip1));
@@ -3924,6 +3953,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     digitalWrite(DIR_Pin, MotorCC);
     delay(2);
   }
+
 
   MSGOutput("Delta Pos : " + String(deltaPos));
 
@@ -3973,7 +4003,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
       break;
   }
 
-  PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+  PD_Now = Cal_PD_Input_IL(2*Get_PD_Points);
   MSGOutput("Best IL: " + String(PD_Best));
   MSGOutput("Final IL: " + String(PD_Now));
 
@@ -5436,8 +5466,8 @@ int Function_Excecutation(String cmd, int cmd_No)
 
               if (Q_Time > 540)
               {
-                if( Acceptable_Delta_IL != 0.15 ){
-                  Acceptable_Delta_IL = 0.15; // Target IL changed 0.25
+                if( Acceptable_Delta_IL != 0.2 ){
+                  Acceptable_Delta_IL = 0.2; // Target IL changed 0.25
                   MSGOutput("Update Scan Condition: " + String(Acceptable_Delta_IL));     
                 }
               }
@@ -5445,7 +5475,7 @@ int Function_Excecutation(String cmd, int cmd_No)
 
             PD_Now = Cal_PD_Input_IL(Get_PD_Points * 4);  //Increase IL stability
 
-            if (PD_Now >= (AutoCuring_Best_IL - (Acceptable_Delta_IL + 0.15)))
+            if (PD_Now >= (AutoCuring_Best_IL - (Acceptable_Delta_IL)))
             {
               time_curing_2 = millis();
               continue;
