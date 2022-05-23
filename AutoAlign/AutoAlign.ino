@@ -174,6 +174,9 @@ uint16_t FS_Steps_Z = 80;
 uint16_t FS_Stable_Z = 0;
 uint16_t FS_DelaySteps_Z = 80;
 uint16_t FS_Avg_Z = 800;
+uint16_t FS_Trips_X = 0;
+uint16_t FS_Trips_Y = 0;
+uint16_t FS_Trips_Z = 2;
 
 uint16_t EP_PD_Ref = 0;
 uint16_t EP_Board_ID = 8;
@@ -209,6 +212,9 @@ uint16_t EP_FS_Steps_Z = 328;
 uint16_t EP_FS_Stable_Z = 336;
 uint16_t EP_FS_DelaySteps_Z = 344;
 uint16_t EP_FS_Avg_Z = 352;
+uint16_t EP_FS_Trips_X = 360;
+uint16_t EP_FS_Trips_Y = 368;
+uint16_t EP_FS_Trips_Z = 376;
 
 
 double averagePDInput = 0;
@@ -1910,6 +1916,14 @@ void setup()
   FS_Avg_Z = ReadInfoEEPROM(EP_FS_Avg_Z, 8).toInt();
   MSGOutput("FS_Avg_Z: " + String(FS_Avg_Z));
 
+  FS_Trips_X = ReadInfoEEPROM(EP_FS_Trips_X, 8).toInt();
+  MSGOutput("FS_Trips_X: " + String(FS_Trips_X));
+
+  FS_Trips_Y = ReadInfoEEPROM(EP_FS_Trips_Y, 8).toInt();
+  MSGOutput("FS_Trips_Y: " + String(FS_Trips_Y));
+
+  FS_Trips_Z = ReadInfoEEPROM(EP_FS_Trips_Z, 8).toInt();
+  MSGOutput("FS_Trips_Z: " + String(FS_Trips_Z));
 
 
   isLCD = true;
@@ -2195,14 +2209,14 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       CMDOutput("AS");
       // K_OK = Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan,Trip_");
       // K_OK = Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Scan,Trip_");
-      K_OK = Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, 0, FS_DelaySteps_X, StopValue, FS_Avg_X, 2, "X Scan,Trip_");
+      K_OK = Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, 0, FS_DelaySteps_X, StopValue, FS_Avg_X, FS_Trips_X, "X Scan,Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
       {
         CMDOutput("AS");
         // Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Re-Scan,Trip_");
-        Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, 0, FS_DelaySteps_X, StopValue, FS_Avg_X, 2, "X Scan,Trip_");
+        Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, 0, FS_DelaySteps_X, StopValue, FS_Avg_X, FS_Trips_X, "X Re-Scan,Trip_");
         CMDOutput("%:");
       }
 
@@ -2216,14 +2230,14 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       CMDOutput("AS");
       // Scan_AllRange_TwoWay(1, 6, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 100, StopValue, 600, 2, "Y Scan, Trip_");
       // K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 600, 2, "Y Scan,Trip_"); 
-      K_OK = Scan_AllRange_TwoWay(1, FS_Count_Y, FS_Steps_Y, FS_Stable_Y, 0, FS_DelaySteps_Y, StopValue, FS_Avg_Y, 2, "Y Scan,Trip_"); 
+      K_OK = Scan_AllRange_TwoWay(1, FS_Count_Y, FS_Steps_Y, FS_Stable_Y, 0, FS_DelaySteps_Y, StopValue, FS_Avg_Y, FS_Trips_Y, "Y Scan,Trip_"); 
       CMDOutput("%:");
 
       if (!K_OK)
       {
         CMDOutput("AS");
         // Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 600, 2, "Y Re-Scan,Trip_");
-        Scan_AllRange_TwoWay(1, FS_Count_Y, FS_Steps_Y, FS_Stable_Y, 0, FS_DelaySteps_Y, StopValue, FS_Avg_Y, 2, "Y Scan,Trip_"); 
+        Scan_AllRange_TwoWay(1, FS_Count_Y, FS_Steps_Y, FS_Stable_Y, 0, FS_DelaySteps_Y, StopValue, FS_Avg_Y, FS_Trips_Y, "Y Re-Scan,Trip_"); 
         CMDOutput("%:");
       }
 
@@ -2238,14 +2252,14 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       // Scan_AllRange_TwoWay(2, 6, 100, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 600, 2, "Z Scan, Trip_"); //--Z--
       // Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 600, 2, "Z_Scan,Trip_");
       // K_OK = Scan_AllRange_TwoWay(2, 7, 80, 0, 0, 80, StopValue, 800, 2, "Z Scan,Trip_");
-      K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, FS_Steps_Z, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, 2, "Z Scan,Trip_");
+      K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, FS_Steps_Z, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Scan,Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
       {
         CMDOutput("AS");
         // Scan_AllRange_TwoWay(2, 7, 80, 0, 0, 80, StopValue, 800, 2, "Z Re-Scan,Trip_");
-        Scan_AllRange_TwoWay(2, FS_Count_Z, FS_Steps_Z, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, 2, "Z Scan,Trip_");
+        Scan_AllRange_TwoWay(2, FS_Count_Z, FS_Steps_Z, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Re-Scan,Trip_");
         CMDOutput("%:");
       }
 
@@ -2721,28 +2735,44 @@ void AutoAlign()
   Serial.println("........ XYZ_Scan(Fine) ........");
   Region = "Scan(Fine)";
 
-  PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-  PDValue_Best = PD_Now;
+  // PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+  // PDValue_Best = PD_Now;
 
   if (true && PD_Now > -25)
   {
-    CMDOutput("AS");
-    // Scan_AllRange_TwoWay(2, 6, AA_ScanFine_Scan_Steps_Z_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, StopValue, 500, 2, Region + "_Z Scan, Trip_");
-    Scan_AllRange_TwoWay(2, 6, AA_ScanFine_Scan_Steps_Z_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, Target_IL, 500, 2, Region + "_Z Scan, Trip_");
-    CMDOutput("%:");
+    for (size_t i = 0; i < 3; i++)
+    {
+      PD_Before = Cal_PD_Input_IL(2 * Get_PD_Points);
 
-    CMDOutput("AS");
-    // Scan_AllRange_TwoWay(1, 8, AA_ScanFine_Scan_Steps_Y_A, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 550, 2, Region + "_Y Scan, Trip_");
-    Scan_AllRange_TwoWay(1, 8, AA_ScanFine_Scan_Steps_Y_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, Target_IL, 500, 2, Region + "_Y Scan, Trip_");
-    CMDOutput("%:");
+      // CMDOutput("AS");
+      // Scan_AllRange_TwoWay(2, 6, AA_ScanFine_Scan_Steps_Z_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, Target_IL, 500, 2, Region + "_Z Scan, Trip_");
+      Fine_Scan(3, false); 
+      // CMDOutput("%:");
 
-    CMDOutput("AS");
-    // Scan_AllRange_TwoWay(0, 8, AA_ScanFine_Scan_Steps_X_A, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 550, 2, Region + "_X Scan, Trip_");
-    Scan_AllRange_TwoWay(0, 8, AA_ScanFine_Scan_Steps_X_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, Target_IL, 500, 2, Region + "_X Scan, Trip_");
-    CMDOutput("%:");
+      DataOutput(false);
 
-    // Serial.println("Position : " + String(X_Pos_Now) + ", " + String(Y_Pos_Now) + ", " + String(Z_Pos_Now));
-    DataOutput(false);
+      // CMDOutput("AS");
+      // Scan_AllRange_TwoWay(1, 8, AA_ScanFine_Scan_Steps_Y_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, Target_IL, 500, 2, Region + "_Y Scan, Trip_");
+      Fine_Scan(2, false); 
+      // CMDOutput("%:");
+
+      DataOutput(false);
+
+      // CMDOutput("AS");
+      // Scan_AllRange_TwoWay(0, 8, AA_ScanFine_Scan_Steps_X_A, AA_ScanFinal_Scan_Delay_X_A, 0, 60, Target_IL, 500, 2, Region + "_X Scan, Trip_");
+      Fine_Scan(1, false); 
+      // CMDOutput("%:");
+
+      DataOutput(false);
+
+      PD_After = Cal_PD_Input_IL(2 * Get_PD_Points);
+
+      if(PD_After <= PD_Before || abs(PD_Before - PD_After) <= 0.12)
+      {
+        MSGOutput("Final Fine-Scan loop break");
+        break;
+      }
+    }
   }
 
   //    return;
@@ -3647,9 +3677,6 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   delay(1);
   step(STP_Pin, motorStep * count, delayBetweenStep); //Jump to Trip_1 initial position----------------
 
-  // Serial.println(String(STP_Pin) + "," + String(motorStep) + "," + String(count) + "," + String(delayBetweenStep));
-  // return true;
-
   MotorCC = !MotorCC; //Reverse direction
   digitalWrite(DIR_Pin, MotorCC);
   delay(5);
@@ -3718,6 +3745,20 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
       return true;
     }
 
+    if(Trips == 0 && i > 3)
+    {
+      if( (PD_Value[i]<=PD_Value[i-1] || abs(PD_Value[i] - PD_Value[i-1] <=0.02)) && PD_Value[i]>=-1.8)
+      {
+        MSGOutput("Over best IL in trip 1");
+        PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
+        MSGOutput("Final IL: " + String(PD_Now));
+        timer_2 = millis();
+        double ts = (timer_2 - timer_1) * 0.001;
+        CMDOutput("t:" + String(ts, 2));
+        return true;
+      }
+    }
+
     if (i == (dataCount - 1) && Pos_Best_Trip1 == Get_Position(XYZ))
     {
       Serial.println("Datacount+3");
@@ -3762,7 +3803,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   MSGOutput("trip: " + String(trip) );
   MSGOutput("Trips: " + String(Trips) );
   
-  if (trip == Trips)
+  if (trip != 1)
   {
     CMDOutput("~:" + msg + String(trip));
 
@@ -3848,10 +3889,10 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
   MSGOutput(" --- Trip 3 --- " );
 
-  double PD_Best = 0;
+  double PD_Best = IL_Best_Trip1;
   int deltaPos = 0;
 
-  if (IL_Best_Trip2 > IL_Best_Trip1 && (IL_Best_Trip2 - IL_Best_Trip1)> 0.25 && Trips == 2)
+  if (IL_Best_Trip2 > IL_Best_Trip1 && (IL_Best_Trip2 - IL_Best_Trip1)> 0.25 && Trips != 1)
   {
     if (isStop)
     {
@@ -4913,6 +4954,21 @@ int Function_Classification(String cmd, int ButtonSelected)
       {
         FS_Avg_Z = cmd.toInt();
         Serial.println("Write EEPROM FS_Avg_Z: " + WR_EEPROM(EP_FS_Avg_Z, cmd));
+      }
+      else if (ParaName == "FS_Trips_X")
+      {
+        FS_Trips_X = cmd.toInt();
+        Serial.println("Write EEPROM FS_Trips_X: " + WR_EEPROM(EP_FS_Trips_X, cmd));
+      }
+      else if (ParaName == "FS_Trips_Y")
+      {
+        FS_Trips_Y = cmd.toInt();
+        Serial.println("Write EEPROM FS_Trips_Y: " + WR_EEPROM(EP_FS_Trips_Y, cmd));
+      }
+      else if (ParaName == "FS_Trips_Z")
+      {
+        FS_Trips_Z = cmd.toInt();
+        Serial.println("Write EEPROM FS_Trips_Z: " + WR_EEPROM(EP_FS_Trips_Z, cmd));
       }
     }
 
