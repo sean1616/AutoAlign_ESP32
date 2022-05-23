@@ -3691,7 +3691,11 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   DataOutput(XYZ, PD_Now); //int xyz, double pdValue
 
   if (PD_Now >= StopPDValue)
+  {
+    maxIL_in_FineScan = 0;
+    minIL_in_FineScan = -100;
     return true;
+  }
 
   for (int i = 0; i < dataCount; i++)
   {
@@ -3964,11 +3968,16 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   else //------------Best in Trip_1----------------
   {
     MSGOutput("Best in Trip_1 : " + String(Pos_Best_Trip1));
+    MSGOutput("Position Now : " + String(Get_Position(XYZ)));
 
+    if(Pos_Best_Trip1 == Get_Position(XYZ))
+      return true;
+      
     if (XYZ == 2)
       Pos_Best_Trip1 = Pos_Best_Trip1 - AQ_Scan_Compensation_Steps_Z_A;
 
     MSGOutput("Best in Trip_1 (Compensation) : " + String(Pos_Best_Trip1));
+
 
     PD_Best = IL_Best_Trip1;
     deltaPos = abs(Pos_Best_Trip1 - Get_Position(XYZ));
