@@ -1351,8 +1351,8 @@ void LCD_Encoder_Selected()
   {
     btn_isTrigger = true;
 
-    Serial.println("PageLevel:" + String(PageLevel) + ", mainpageIndex:" + String(mainpageIndex) + ", subpageIndex:" + String(subpageIndex));
-    Serial.println("subpageIndex:" + String(subpageIndex) + ", item_is_selected:" + String(item_is_selected));
+    // Serial.println("PageLevel:" + String(PageLevel) + ", mainpageIndex:" + String(mainpageIndex) + ", subpageIndex:" + String(subpageIndex));
+    // Serial.println("subpageIndex:" + String(subpageIndex) + ", item_is_selected:" + String(item_is_selected));
 
     if (PageLevel == 0)
     {
@@ -2253,19 +2253,19 @@ bool Fine_Scan(int axis, bool Trip2Stop)
 
       PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
 
-      MotorCC_Z = digitalRead(Z_DIR_Pin);
+      // MotorCC_Z = digitalRead(Z_DIR_Pin);
 
       CMDOutput("AS");
       // Scan_AllRange_TwoWay(2, 6, 100, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 600, 2, "Z Scan, Trip_"); //--Z--
       // Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 600, 2, "Z_Scan,Trip_");
       // K_OK = Scan_AllRange_TwoWay(2, 7, 80, 0, 0, 80, StopValue, 800, 2, "Z Scan,Trip_");
-      K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, FS_Steps_Z, FS_Stable_Z, MotorCC_Z, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Scan,Trip_");
+      K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, FS_Steps_Z, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Scan,Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
       {
-        MotorCC_Z = digitalRead(Z_DIR_Pin);
-        
+        // MotorCC_Z = digitalRead(Z_DIR_Pin);
+
         CMDOutput("AS");
         // Scan_AllRange_TwoWay(2, 7, 80, 0, 0, 80, StopValue, 800, 2, "Z Re-Scan,Trip_");
         Scan_AllRange_TwoWay(2, FS_Count_Z, FS_Steps_Z, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Re-Scan,Trip_");
@@ -3760,7 +3760,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
     if(Trips == 0 && i > 3)
     {
-      if( (PD_Value[i]<=PD_Value[i-1] || abs(PD_Value[i] - PD_Value[i-1] <=0.02)) && PD_Value[i]>=-1.6)
+      if( (PD_Value[i]<=PD_Value[i-1] || abs(PD_Value[i] - PD_Value[i-1]) <=0.02) && PD_Value[i]>=-1.6)
       {
         MSGOutput("Over best IL in trip 1");
         PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
