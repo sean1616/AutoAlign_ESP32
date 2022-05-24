@@ -2203,20 +2203,23 @@ bool Fine_Scan(int axis, bool Trip2Stop)
     {
     case 1:
 
-      //        X_ScanSTP = 12;
       PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+
+      MotorCC_X = digitalRead(X_DIR_Pin);
 
       CMDOutput("AS");
       // K_OK = Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan,Trip_");
       // K_OK = Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Scan,Trip_");
-      K_OK = Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, 0, FS_DelaySteps_X, StopValue, FS_Avg_X, FS_Trips_X, "X Scan,Trip_");
+      K_OK = Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, MotorCC_X, FS_DelaySteps_X, StopValue, FS_Avg_X, FS_Trips_X, "X Scan,Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
       {
+        MotorCC_X = digitalRead(X_DIR_Pin);
+
         CMDOutput("AS");
         // Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Re-Scan,Trip_");
-        Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, 0, FS_DelaySteps_X, StopValue, FS_Avg_X, FS_Trips_X, "X Re-Scan,Trip_");
+        Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, MotorCC_X, FS_DelaySteps_X, StopValue, FS_Avg_X, FS_Trips_X, "X Re-Scan,Trip_");
         CMDOutput("%:");
       }
 
@@ -2224,20 +2227,23 @@ bool Fine_Scan(int axis, bool Trip2Stop)
 
     case 2:
 
-      //        Y_ScanSTP = 10;
       PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
+
+      MotorCC_Y = digitalRead(Y_DIR_Pin);
 
       CMDOutput("AS");
       // Scan_AllRange_TwoWay(1, 6, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 100, StopValue, 600, 2, "Y Scan, Trip_");
       // K_OK = Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 600, 2, "Y Scan,Trip_"); 
-      K_OK = Scan_AllRange_TwoWay(1, FS_Count_Y, FS_Steps_Y, FS_Stable_Y, 0, FS_DelaySteps_Y, StopValue, FS_Avg_Y, FS_Trips_Y, "Y Scan,Trip_"); 
+      K_OK = Scan_AllRange_TwoWay(1, FS_Count_Y, FS_Steps_Y, FS_Stable_Y, MotorCC_Y, FS_DelaySteps_Y, StopValue, FS_Avg_Y, FS_Trips_Y, "Y Scan,Trip_"); 
       CMDOutput("%:");
 
       if (!K_OK)
       {
+        MotorCC_Y = digitalRead(Y_DIR_Pin);
+
         CMDOutput("AS");
         // Scan_AllRange_TwoWay(1, 8, 20, 0, 0, 120, StopValue, 600, 2, "Y Re-Scan,Trip_");
-        Scan_AllRange_TwoWay(1, FS_Count_Y, FS_Steps_Y, FS_Stable_Y, 0, FS_DelaySteps_Y, StopValue, FS_Avg_Y, FS_Trips_Y, "Y Re-Scan,Trip_"); 
+        Scan_AllRange_TwoWay(1, FS_Count_Y, FS_Steps_Y, FS_Stable_Y, MotorCC_Y, FS_DelaySteps_Y, StopValue, FS_Avg_Y, FS_Trips_Y, "Y Re-Scan,Trip_"); 
         CMDOutput("%:");
       }
 
@@ -2245,18 +2251,21 @@ bool Fine_Scan(int axis, bool Trip2Stop)
 
     case 3:
 
-      //        Z_ScanSTP = 100;
       PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
+
+      MotorCC_Z = digitalRead(Z_DIR_Pin);
 
       CMDOutput("AS");
       // Scan_AllRange_TwoWay(2, 6, 100, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 600, 2, "Z Scan, Trip_"); //--Z--
       // Scan_AllRange_TwoWay(2, 8, 125, 0, 0, 100, StopValue, 600, 2, "Z_Scan,Trip_");
       // K_OK = Scan_AllRange_TwoWay(2, 7, 80, 0, 0, 80, StopValue, 800, 2, "Z Scan,Trip_");
-      K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, FS_Steps_Z, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Scan,Trip_");
+      K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, FS_Steps_Z, FS_Stable_Z, MotorCC_Z, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Scan,Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
       {
+        MotorCC_Z = digitalRead(Z_DIR_Pin);
+        
         CMDOutput("AS");
         // Scan_AllRange_TwoWay(2, 7, 80, 0, 0, 80, StopValue, 800, 2, "Z Re-Scan,Trip_");
         Scan_AllRange_TwoWay(2, FS_Count_Z, FS_Steps_Z, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Re-Scan,Trip_");
@@ -3751,7 +3760,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
     if(Trips == 0 && i > 3)
     {
-      if( (PD_Value[i]<=PD_Value[i-1] || abs(PD_Value[i] - PD_Value[i-1] <=0.02)) && PD_Value[i]>=-1.8)
+      if( (PD_Value[i]<=PD_Value[i-1] || abs(PD_Value[i] - PD_Value[i-1] <=0.02)) && PD_Value[i]>=-1.6)
       {
         MSGOutput("Over best IL in trip 1");
         PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
@@ -5342,7 +5351,7 @@ int Function_Excecutation(String cmd, int cmd_No)
           // Scan_AllRange_TwoWay(2, 6, 100, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 600, 2, "Z Scan, Trip_"); //--Z--
           Fine_Scan(3, false); 
 
-          CMDOutput("%:");
+          // CMDOutput("%:");
 
           if (isStop)
             true;
@@ -5363,18 +5372,18 @@ int Function_Excecutation(String cmd, int cmd_No)
           // }
 
            Fine_Scan(2, false); 
-          CMDOutput("%:");
+          // CMDOutput("%:");
 
           if (isStop)
             true;
 
           //------------------------------------------------------------------------------------------------------------------------------Q Scan X
 
-          CMDOutput("AS");
+          // CMDOutput("AS");
 
           // Scan_AllRange_TwoWay(0, 8, 22, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "X Scan, Trip_"); //steps:350
           Fine_Scan(1, false); 
-          CMDOutput("%:");
+          // CMDOutput("%:");
 
           if (isStop)
             true;
