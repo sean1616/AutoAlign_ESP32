@@ -5425,11 +5425,14 @@ int Function_Excecutation(String cmd, int cmd_No)
 
           StopValue = AutoCuring_Best_IL;
 
+          if(StopValue > -0.82)
+            StopValue = -0.82;
+
           Z_ScanSTP = AQ_Scan_Steps_Z_A; //125 (AQ_Scan_Steps_Z_A)
           MSGOutput("Auto-Curing");
-          MSGOutput("StopValue : " + String(StopValue));
           CMDOutput("AQ");                             // Auto_Curing Start
           CMDOutput("QT" + String(AQ_Total_TimeSpan)); // Auto_Curing Start
+          MSGOutput("StopValue : " + String(StopValue));
 
           while (true)
           {
