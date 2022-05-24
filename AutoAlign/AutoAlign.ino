@@ -3760,7 +3760,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
     if(Trips == 0 && i > 3)
     {
-      if( (PD_Value[i]<=PD_Value[i-1] || abs(PD_Value[i] - PD_Value[i-1]) <=0.02) && PD_Value[i]>=-1.6)
+      if( (PD_Value[i]<=PD_Value[i-1] || abs(PD_Value[i] - PD_Value[i-1]) <=0.02) && PD_Value[i]>=-1.8)
       {
         MSGOutput("Over best IL in trip 1");
         PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
@@ -3816,7 +3816,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   MSGOutput("trip: " + String(trip) );
   MSGOutput("Trips: " + String(Trips) );
   
-  if (trip != 1)
+  if (Trips != 1)
   {
     CMDOutput("~:" + msg + String(trip));
 
@@ -4016,6 +4016,16 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
   MSGOutput("Delta Pos : " + String(deltaPos));
 
+  step(STP_Pin, deltaPos, delayBetweenStep);
+  delay(stableDelay);
+  PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+  DataOutput();
+  DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+
+  if (PD_Now >= PD_Best)
+    MSGOutput("PD_Best");
+
+  if(false)
   while (true)
   {
     if (isStop)
