@@ -189,8 +189,8 @@ uint16_t EP_delayBetweenStep_Y = 56;
 uint16_t EP_delayBetweenStep_Z = 64;
 uint16_t EP_Target_IL = 72;
 uint16_t EP_AA_ScanFinal_Scan_Delay_X_A = 80;
-uint16_t EP_Server_ID = 88;
-uint16_t EP_Server_Password = 128;
+uint16_t EP_Server_ID = 88;  //88~119
+uint16_t EP_Server_Password = 120;  //120~151
 uint16_t EP_AQ_Scan_Compensation_Steps_Z_A = 160;
 uint16_t EP_AQ_Total_TimeSpan = 168;
 uint16_t EP_AQ_Scan_Steps_Z_A = 176;
@@ -5212,7 +5212,7 @@ int Function_Classification(String cmd, int ButtonSelected)
     //Get Server ID
     else if (cmd == "ID_Server?")
     {
-      Serial.println(ReadInfoEEPROM(88, 32));
+      MSGOutput(ReadInfoEEPROM(88, 32));
     }
 
     //Set Server Password
