@@ -3980,7 +3980,13 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     MSGOutput("Position Now : " + String(Get_Position(XYZ)));
 
     if(Pos_Best_Trip1 == Get_Position(XYZ))
-      return true;
+    {
+      PD_Now = Cal_PD_Input_IL(2 * Get_PD_Points);
+      if(abs(PD_Now - IL_Best_Trip1)<=0.12 || PD_Now > IL_Best_Trip1)
+        return true;
+      else
+        return false;
+    }
       
     if (XYZ == 2)
       Pos_Best_Trip1 = Pos_Best_Trip1 - AQ_Scan_Compensation_Steps_Z_A;
