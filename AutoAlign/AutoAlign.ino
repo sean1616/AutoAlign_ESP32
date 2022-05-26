@@ -2749,7 +2749,7 @@ void AutoAlign()
 
   if (true && PD_Now > -25)
   {
-    for (size_t i = 0; i < 3; i++)
+    for (size_t i = 0; i < 1; i++)
     {
       PD_Before = Cal_PD_Input_IL(2 * Get_PD_Points);
 
@@ -3682,22 +3682,42 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   if (PD_initial >= StopPDValue)
     return true;
 
+  //-------------------------------------------Jump to Trip_1 initial position-------------------------------------
   digitalWrite(DIR_Pin, MotorCC);
   delay(1);
-  step(STP_Pin, motorStep * count, delayBetweenStep); //Jump to Trip_1 initial position----------------
-
-  MotorCC = !MotorCC; //Reverse direction
-  digitalWrite(DIR_Pin, MotorCC);
-  delay(5);
-
-  delay(stableDelay + 100); //--------------------------------Trip_1 -----------------------------------------------
-
-  // CMDOutput(">>" + msg + String(trip));
-  // Serial.println(">>" + msg + String(trip)); //Trip_1
+  step(STP_Pin, motorStep * count, delayBetweenStep); 
 
   PD_Now = Cal_PD_Input_IL(Get_PD_Points);
   DataOutput();
   DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+
+  for (size_t i = 0; i < 2; i++)
+  {
+    if(PD_Now > PD_initial && (PD_Now - PD_initial) >= 1)
+    {
+      step(STP_Pin, motorStep * count, delayBetweenStep); 
+      PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+      DataOutput();
+      DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+      
+    }
+    else
+      break;
+  }
+  
+  MotorCC = !MotorCC; //Reverse direction
+  digitalWrite(DIR_Pin, MotorCC);
+
+  delay(stableDelay + 105); 
+
+  // CMDOutput(">>" + msg + String(trip));
+  // Serial.println(">>" + msg + String(trip)); //Trip_1
+
+  // PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+  // DataOutput();
+  // DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+
+  //-------------------------------------------------------Trip_1 -----------------------------------------------
 
   if (PD_Now >= StopPDValue)
   {
@@ -3905,7 +3925,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   double PD_Best = IL_Best_Trip1;
   int deltaPos = 0;
 
-  if (IL_Best_Trip2 > IL_Best_Trip1 && (IL_Best_Trip2 - IL_Best_Trip1)> 0.25 && Trips != 1)
+  if (IL_Best_Trip2 > IL_Best_Trip1 && (IL_Best_Trip2 - IL_Best_Trip1)> 0.05 && Trips != 1)
   {
     if (isStop)
     {
@@ -4022,61 +4042,61 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
   MSGOutput("Delta Pos : " + String(deltaPos));
 
-  step(STP_Pin, deltaPos, delayBetweenStep);
-  delay(stableDelay);
-  PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-  DataOutput();
-  DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+  // step(STP_Pin, deltaPos, delayBetweenStep);
+  // delay(stableDelay);
+  // PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+  // DataOutput();
+  // DataOutput(XYZ, PD_Now); //int xyz, double pdValue
 
-  if (PD_Now >= PD_Best)
-    MSGOutput("PD_Best");
+  // if (PD_Now >= PD_Best)
+  //   MSGOutput("PD_Best");
 
-  if(false)
-  while (true)
-  {
-    if (isStop)
+  if(true)    
+    while (true)
     {
-      return true;
-    }
-
-    if (deltaPos >= motorStep)
-    {
-      deltaPos = deltaPos - motorStep;
-
-      step(STP_Pin, motorStep, delayBetweenStep);
-      delay(stableDelay);
-      PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-      DataOutput();
-      DataOutput(XYZ, PD_Now); //int xyz, double pdValue
-
-      if (PD_Now >= StopPDValue)
+      if (isStop)
       {
-        MSGOutput("StopPDValue");
+        return true;
+      }
+
+      if (deltaPos >= motorStep)
+      {
+        deltaPos = deltaPos - motorStep;
+
+        step(STP_Pin, motorStep, delayBetweenStep);
+        delay(stableDelay);
+        PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+        DataOutput();
+        DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+
+        if (PD_Now >= StopPDValue)
+        {
+          MSGOutput("StopPDValue");
+          break;
+        }
+        if (PD_Now >= PD_Best)
+        {
+          MSGOutput("PD_Best");
+          break;
+        }
+      }
+      else if (deltaPos > 0 && deltaPos < motorStep)
+      {
+        step(STP_Pin, deltaPos, delayBetweenStep);
+        delay(stableDelay);
+        PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+        DataOutput();
+        DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+
         break;
       }
-      if (PD_Now >= PD_Best)
+      else if (deltaPos == 0)
       {
-        MSGOutput("PD_Best");
         break;
       }
+      else
+        break;
     }
-    else if (deltaPos > 0 && deltaPos < motorStep)
-    {
-      step(STP_Pin, deltaPos, delayBetweenStep);
-      delay(stableDelay);
-      PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-      DataOutput();
-      DataOutput(XYZ, PD_Now); //int xyz, double pdValue
-
-      break;
-    }
-    else if (deltaPos == 0)
-    {
-      break;
-    }
-    else
-      break;
-  }
 
   PD_Now = Cal_PD_Input_IL(2*Get_PD_Points);
   MSGOutput("Best IL: " + String(PD_Best));
