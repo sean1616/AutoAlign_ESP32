@@ -3687,9 +3687,13 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   delay(1);
   step(STP_Pin, motorStep * count, delayBetweenStep); 
 
+  delay(100);
+
   PD_Now = Cal_PD_Input_IL(Get_PD_Points);
   DataOutput();
   DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+
+  MSGOutput("Jump IL: " + String(PD_Now));
 
   for (size_t i = 0; i < 2; i++)
   {
@@ -3699,7 +3703,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
       PD_Now = Cal_PD_Input_IL(Get_PD_Points);
       DataOutput();
       DataOutput(XYZ, PD_Now); //int xyz, double pdValue
-      
+      MSGOutput("Jump IL: " + String(PD_Now));
     }
     else
       break;
