@@ -1707,9 +1707,6 @@ void setup()
   server_ID = ReadInfoEEPROM(88, 32);
   server_Password = ReadInfoEEPROM(120, 32);
 
-  // Serial.println("Server ID: " + server_ID);
-  // Serial.println("Server Password: " + server_Password);
-
   if (Contains(server_ID, "??") || server_ID == "")
   {
     server_ID = "GFI-ESP32-Access-Point";
@@ -3697,7 +3694,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     DataOutput();
     DataOutput(XYZ, PD_Now); //int xyz, double pdValue
 
-    MSGOutput("Jump IL: " + String(PD_Now));
+    Serial.println("Jump IL: " + String(PD_Now));
 
     for (size_t i = 0; i < 2; i++)
     {
@@ -3707,7 +3704,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
         PD_Now = Cal_PD_Input_IL(Get_PD_Points);
         DataOutput();
         DataOutput(XYZ, PD_Now); //int xyz, double pdValue
-        MSGOutput("Jump IL: " + String(PD_Now));
+        Serial.println("Jump IL: " + String(PD_Now));
       }
       else
         break;
@@ -3724,7 +3721,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
       if(PD_Now < (PD_initial - 3.5))
       {
-        MSGOutput("Jump IL < (IL - 3.5): " + String(PD_Now));
+        Serial.println("Jump IL < (IL - 3.5): " + String(PD_Now));
         break;
       }
     }
@@ -3780,7 +3777,11 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     step(STP_Pin, motorStep, delayBetweenStep);    
     delay(stableDelay);
 
-    PD_Value[i] = Cal_PD_Input_IL(Get_PD_Points);
+    if(i>0 && PD_Value[i-1] > -2)
+      PD_Value[i] = Cal_PD_Input_IL(2500);
+    else
+      PD_Value[i] = Cal_PD_Input_IL(Get_PD_Points);
+
     Step_Value[i] = Get_Position(XYZ);
 
     if (PD_Value[i] > IL_Best_Trip1)
@@ -3799,20 +3800,14 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     DataOutput();
     DataOutput(XYZ, PD_Value[i]); //int xyz, double pdValue
 
-    if(IL_Best_Trip1 >= -2.5 && PD_Value[i] <= (IL_Best_Trip1 - 0.8))
+    if(IL_Best_Trip1 >= -2.5 && PD_Value[i] <= (IL_Best_Trip1 - 1.5) && Trips == 1)
     {
-      MSGOutput("IL < (IL-0.5): " + String(PD_Value[i]));
-
-      MSGOutput("i: " + String(i));
-      MSGOutput("indexofBestIL: " + String(indexofBestIL));
-      MSGOutput("dataCount: " + String(dataCount));
-      MSGOutput("Pos_Best_Trip1: " + String(Pos_Best_Trip1));
-      MSGOutput("Pos: " + String(Get_Position(XYZ)));
+      Serial.println("IL < (IL-1.5): " + String(PD_Value[i]));     
 
       //Curfit
       if (indexofBestIL != 0 && Pos_Best_Trip1 != Get_Position(XYZ))
       {
-        MSGOutput("i:" + String(i) + ", Pos_Best_Trip1:" + String(Pos_Best_Trip1));
+        // MSGOutput("i:" + String(i) + ", Pos_Best_Trip1:" + String(Pos_Best_Trip1));
         double x[3];
         double y[3];
         for (int k = -1; k < 2; k++)
@@ -3947,11 +3942,11 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
       DataOutput();
       DataOutput(XYZ, PD_Value[i]); //int xyz, double pdValue
 
-      if(IL_Best_Trip1 >= -2.5 && PD_Value[i] <= (IL_Best_Trip1 - 0.8))
-    {
-       MSGOutput("IL < (IL-0.5): " + String(PD_Value[i]));
-       break;
-    }
+      if(IL_Best_Trip1 >= -2.5 && PD_Value[i] <= (IL_Best_Trip1 - 1.5) && Trips == 1)
+      {
+        Serial.println("IL < (IL-1.5): " + String(PD_Value[i]));
+        break;
+      }
 
       if (PD_Value[i] >= StopPDValue)
       {
@@ -4168,7 +4163,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   double ts = (timer_2 - timer_1) * 0.001;
   CMDOutput("t:" + String(ts, 2));
 
-  if (PD_Now < PD_Best - 1.2)
+  if (PD_Now < PD_Best - 0.5)
     return false;
   else
     return true;
@@ -5403,6 +5398,9 @@ int Function_Excecutation(String cmd, int cmd_No)
       case 1: /* Auto Align */
         if (true)
         {
+          bool initial_wifi_isConnected = isWiFiConnected;
+          isWiFiConnected = false;
+
           AQ_Scan_Compensation_Steps_Z_A = 0;
 
           digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
@@ -5422,7 +5420,8 @@ int Function_Excecutation(String cmd, int cmd_No)
           isLCD = true;
           PageLevel = 0;
           updateUI(PageLevel);
-          // updateUI(0);
+
+          isWiFiConnected = initial_wifi_isConnected;
         }
         cmd_No = 0;
         break;
@@ -5434,6 +5433,8 @@ int Function_Excecutation(String cmd, int cmd_No)
           StopValue = 0; //0 dB
 
           bool K_OK = true;
+          bool initial_wifi_isConnected = isWiFiConnected;
+          isWiFiConnected = false;
 
           isLCD = true;
           PageLevel = 102;
@@ -5494,6 +5495,8 @@ int Function_Excecutation(String cmd, int cmd_No)
           PageLevel = 0;
           updateUI(PageLevel);
           AQ_Scan_Compensation_Steps_Z_A = ReadInfoEEPROM(160, 8).toInt();
+
+          isWiFiConnected = initial_wifi_isConnected;
         }
         cmd_No = 0;
         break;
@@ -5780,7 +5783,11 @@ int Function_Excecutation(String cmd, int cmd_No)
         break;
 
       case 5: /* Fine Scan X */
-        if (!btn_isTrigger){
+        if (!btn_isTrigger)
+        {
+          bool initial_wifi_isConnected = isWiFiConnected;
+          isWiFiConnected = false;
+
           isLCD = true;
           PageLevel = 102;
           updateUI(PageLevel);
@@ -5792,12 +5799,18 @@ int Function_Excecutation(String cmd, int cmd_No)
           isLCD = true;
           PageLevel = 0;
           updateUI(PageLevel);
+
+          isWiFiConnected = initial_wifi_isConnected;
         }
         cmd_No = 0;
         break;
 
       case 6: /* Fine Scan Y */
-        if (!btn_isTrigger){
+        if (!btn_isTrigger)
+        {
+          bool initial_wifi_isConnected = isWiFiConnected;
+          isWiFiConnected = false;
+
           isLCD = true;
           PageLevel = 102;
           updateUI(PageLevel);
@@ -5809,12 +5822,18 @@ int Function_Excecutation(String cmd, int cmd_No)
           isLCD = true;
           PageLevel = 0;
           updateUI(PageLevel);
+
+          isWiFiConnected = initial_wifi_isConnected;
         }
         cmd_No = 0;
         break;
 
       case 7: /* Fine Scan Z */
-        if (!btn_isTrigger){
+        if (!btn_isTrigger)
+        {
+          bool initial_wifi_isConnected = isWiFiConnected;
+          isWiFiConnected = false;
+
           isLCD = true;
           PageLevel = 102;
           updateUI(PageLevel);
@@ -5826,6 +5845,8 @@ int Function_Excecutation(String cmd, int cmd_No)
           isLCD = true;
           PageLevel = 0;
           updateUI(PageLevel);
+
+          isWiFiConnected = initial_wifi_isConnected;
         }
         cmd_No = 0;
         break;
@@ -5886,6 +5907,54 @@ int Function_Excecutation(String cmd, int cmd_No)
           isLCD = true;
         }
 
+        cmd_No = 0;
+        break;
+
+      case 20:
+        if(true)
+        {
+          server_ID = ReadInfoEEPROM(88, 32);
+          server_Password = ReadInfoEEPROM(120, 32);
+
+          if (Contains(server_ID, "??") || server_ID == "")
+          {
+            server_ID = "GFI-ESP32-Access-Point";
+          }
+
+          if (Contains(server_Password, "??"))
+          {
+            server_Password = "22101782";
+          }
+
+          Serial.println("Server ID: " + server_ID);
+          Serial.println("Server Password: " + server_Password);
+
+          WiFi.begin(server_ID.c_str(), server_Password.c_str());
+          Serial.println("Connecting");
+
+          int wifiConnectTime = 0;
+          while (WiFi.status() != WL_CONNECTED)
+          {
+            delay(300);
+            Serial.print(".");
+
+            wifiConnectTime += 300;
+            if (wifiConnectTime > 2400)
+              break;
+          }
+
+          if (wifiConnectTime <= 2400)
+          {
+            Serial.println("");
+            Serial.print("Connected to WiFi network with IP Address:");
+            Serial.println(WiFi.localIP());
+            isWiFiConnected = true;
+          }
+          else
+          {
+            Serial.println("Connected to WiFi network failed");
+          }
+        }
         cmd_No = 0;
         break;
 
@@ -5955,10 +6024,10 @@ int Function_Excecutation(String cmd, int cmd_No)
         cmd_No = 0;
         break;
 
-      case 51: /* Get ID */
-        Serial.println(ReadInfoEEPROM(8, 8));
-        cmd_No = 0;
-        break;
+      // case 51: /* Get ID */
+      //   Serial.println(ReadInfoEEPROM(8, 8));
+      //   cmd_No = 0;
+      //   break;
       }
     }
 
@@ -6276,7 +6345,6 @@ void DataOutput()
 {
   double IL = Cal_PD_Input_IL(1);
   Serial.println("Position:" + String(X_Pos_Now) + "," + String(Y_Pos_Now) + "," + String(Z_Pos_Now) + "," + String(IL));
-  // MSGOutput("Position:" + String(X_Pos_Now) + "," + String(Y_Pos_Now) + "," + String(Z_Pos_Now) + "," + String(IL));
 }
 
 void DataOutput(bool isIL)
