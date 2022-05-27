@@ -19,6 +19,7 @@ TaskHandle_t Task_1;
 // Set your access point network credentials
 const char *ssid = "ESP32-Access-Point";
 const char *password = "123456789";
+String server_ID, server_Password;
 
 // String server_ID = "";
 // String server_Password = "22101782";
@@ -1703,8 +1704,8 @@ void setup()
   //宣告使用EEPROM 512 個位置
   EEPROM.begin(512);
   
-  String server_ID = ReadInfoEEPROM(88, 32);
-  String server_Password = ReadInfoEEPROM(120, 32);
+  server_ID = ReadInfoEEPROM(88, 32);
+  server_Password = ReadInfoEEPROM(120, 32);
 
   // Serial.println("Server ID: " + server_ID);
   // Serial.println("Server Password: " + server_Password);
@@ -5829,6 +5830,22 @@ int Function_Excecutation(String cmd, int cmd_No)
         cmd_No = 0;
         break;
 
+      case 11:
+        MSGOutput("Board ID: " + ReadInfoEEPROM(8, 8)); 
+        break;
+
+      case 12:
+        MSGOutput("Station ID: " + ReadInfoEEPROM(16, 8));
+        break;
+
+      case 13:
+        MSGOutput("Server ID: " + String(server_ID)); 
+        break;
+
+      case 14:
+        MSGOutput("Server Pw: " + String(server_Password)); 
+        break;
+
       case 18: /* Set Target IL */
         if (true)
         {
@@ -5919,6 +5936,12 @@ int Function_Excecutation(String cmd, int cmd_No)
         Serial.println(String(Cal_PD_Input_Row_Dac(Get_PD_Points)));
         cmd_No = 0;
         break;
+
+      case 28:
+        for (int i = 0; i < 511; i = i + 8)
+        {
+          MSGOutput("EEPROM(" + String(i) + ") - " + ReadInfoEEPROM(i, 8)); //Reading EEPROM(int start_position, int data_length)
+        }
 
       case 29: /* Get XYZ Position */
         DataOutput(false);
