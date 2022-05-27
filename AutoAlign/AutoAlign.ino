@@ -3685,29 +3685,51 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   //-------------------------------------------Jump to Trip_1 initial position-------------------------------------
   digitalWrite(DIR_Pin, MotorCC);
   delay(1);
-  step(STP_Pin, motorStep * count, delayBetweenStep); 
 
-  delay(100);
-
-  PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-  DataOutput();
-  DataOutput(XYZ, PD_Now); //int xyz, double pdValue
-
-  MSGOutput("Jump IL: " + String(PD_Now));
-
-  for (size_t i = 0; i < 2; i++)
+  if(true)
   {
-    if(PD_Now > PD_initial && (PD_Now - PD_initial) >= 1)
+    step(STP_Pin, motorStep * count, delayBetweenStep); 
+
+    delay(100);
+
+    PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+    DataOutput();
+    DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+
+    MSGOutput("Jump IL: " + String(PD_Now));
+
+    for (size_t i = 0; i < 2; i++)
     {
-      step(STP_Pin, motorStep * count, delayBetweenStep); 
-      PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-      DataOutput();
-      DataOutput(XYZ, PD_Now); //int xyz, double pdValue
-      MSGOutput("Jump IL: " + String(PD_Now));
+      if(PD_Now > PD_initial && (PD_Now - PD_initial) >= 1)
+      {
+        step(STP_Pin, motorStep * count, delayBetweenStep); 
+        PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+        DataOutput();
+        DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+        MSGOutput("Jump IL: " + String(PD_Now));
+      }
+      else
+        break;
     }
-    else
-      break;
   }
+  else
+  {
+    for (size_t i = 0; i < count; i++)
+    {
+      step(STP_Pin, motorStep, delayBetweenStep);
+      PD_Now = Cal_PD_Input_IL(50);
+      // DataOutput();
+      // DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+
+      if(PD_Now < (PD_initial - 3.5))
+      {
+        MSGOutput("Jump IL < (IL - 3.5): " + String(PD_Now));
+        break;
+      }
+    }
+  }
+
+  
   
   MotorCC = !MotorCC; //Reverse direction
   digitalWrite(DIR_Pin, MotorCC);
@@ -3771,10 +3793,39 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     if(PD_Value[i]>maxIL_in_FineScan)
         maxIL_in_FineScan=PD_Value[i];
     if(PD_Value[i]<minIL_in_FineScan)
-        minIL_in_FineScan=PD_Value[i];
+        minIL_in_FineScan=PD_Value[i];    
 
     DataOutput();
     DataOutput(XYZ, PD_Value[i]); //int xyz, double pdValue
+
+    if(IL_Best_Trip1 >= -2.5 && PD_Value[i] <= (IL_Best_Trip1 - 0.8))
+    {
+      MSGOutput("IL < (IL-0.5): " + String(PD_Value[i]));
+
+      MSGOutput("i: " + String(i));
+      MSGOutput("indexofBestIL: " + String(indexofBestIL));
+      MSGOutput("dataCount: " + String(dataCount));
+      MSGOutput("Pos_Best_Trip1: " + String(Pos_Best_Trip1));
+      MSGOutput("Pos: " + String(Get_Position(XYZ)));
+
+      //Curfit
+      if (indexofBestIL != 0 && Pos_Best_Trip1 != Get_Position(XYZ))
+      {
+        MSGOutput("i:" + String(i) + ", Pos_Best_Trip1:" + String(Pos_Best_Trip1));
+        double x[3];
+        double y[3];
+        for (int k = -1; k < 2; k++)
+        {
+          x[k + 1] = Step_Value[indexofBestIL + k]; //idex * step = real steps
+          y[k + 1] = PD_Value[indexofBestIL + k];   //fill this with your sensor data
+          Serial.println("Point : " + String(x[k + 1]) + " , " + String(y[k + 1]));
+        }
+        Pos_Best_Trip1 = Curfit(x, y, 3);
+        MSGOutput("Best IL position in Trip_1 is: " + String(Pos_Best_Trip1));
+      }
+
+      break;
+    }
 
     if (PD_Value[i] >= StopPDValue)
     {
@@ -3894,6 +3945,12 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
       DataOutput();
       DataOutput(XYZ, PD_Value[i]); //int xyz, double pdValue
+
+      if(IL_Best_Trip1 >= -2.5 && PD_Value[i] <= (IL_Best_Trip1 - 0.8))
+    {
+       MSGOutput("IL < (IL-0.5): " + String(PD_Value[i]));
+       break;
+    }
 
       if (PD_Value[i] >= StopPDValue)
       {
@@ -4080,7 +4137,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
         }
         if (PD_Now >= PD_Best)
         {
-          MSGOutput("PD_Best");
+          MSGOutput("Reach IL_Best before");
           break;
         }
       }
