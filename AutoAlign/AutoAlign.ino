@@ -1989,11 +1989,15 @@ void setup()
 
   if(Get_PD_Points < 1)
     Get_PD_Points = 1;
+  else if(Get_PD_Points > 100)
+    Get_PD_Points = 100;
+
 
   Cal_PD_Input_IL(Get_PD_Points);
 
   timer_Get_IL_2 = millis();
 
+ 
   Serial.println("Get_PD_Points:" + String(Get_PD_Points));
   Serial.println("Timespan of Get PD IL:" + String(timer_Get_IL_2 - timer_Get_IL_1));
 
@@ -5385,20 +5389,24 @@ int Function_Excecutation(String cmd, int cmd_No)
           time_curing_2 = time_curing_1;
 
           digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
-          delay(105);
+          delay(155);
 
-          AutoCuring_Best_IL = Cal_PD_Input_IL(Get_PD_Points * 5);
+          AutoCuring_Best_IL = Cal_PD_Input_IL(Get_PD_Points * 3);
 
           StopValue = AutoCuring_Best_IL;
 
-          if(StopValue > -0.82)
-            StopValue = -0.82;
+          if(StopValue > -0.9)
+            StopValue = -0.9;
 
           Z_ScanSTP = AQ_Scan_Steps_Z_A; //125 (AQ_Scan_Steps_Z_A)
           MSGOutput("Auto-Curing");
           CMDOutput("AQ");                             // Auto_Curing Start
           CMDOutput("QT" + String(AQ_Total_TimeSpan)); // Auto_Curing Start
           MSGOutput("StopValue : " + String(StopValue));
+          // MSGOutput("AQ_Scan_Steps_Z_A : " + String(AQ_Scan_Steps_Z_A));
+          // MSGOutput("AQ_Scan_Steps_Z_B : " + String(AQ_Scan_Steps_Z_B));
+          // MSGOutput("AQ_Scan_Steps_Z_C : " + String(AQ_Scan_Steps_Z_C));
+          // MSGOutput("AQ_Scan_Steps_Z_D : " + String(AQ_Scan_Steps_Z_D));
 
           while (true)
           {
@@ -5433,19 +5441,19 @@ int Function_Excecutation(String cmd, int cmd_No)
             //Q State
             if (true)
             {
-              if (Q_Time <= 540)
+              if (Q_Time <= 540)  // 540
               {
                 Q_State = 1;
               }
-              else if (Q_Time > 540 && Q_Time <= 600)
+              else if (Q_Time > 540 && Q_Time <= 600)  //540, 600
               {
                 Q_State = 2;
               }
-              else if (Q_Time > 600 && Q_Time <= 700)
+              else if (Q_Time > 600 && Q_Time <= 700)  //600, 700
               {
                 Q_State = 3;
               }
-              else if (Q_Time > 700)
+              else if (Q_Time > 700)  //700
               {
                 Q_State = 4;
               }
@@ -5479,6 +5487,8 @@ int Function_Excecutation(String cmd, int cmd_No)
             if (isStop)
               break;
 
+            // MSGOutput("Z_ScanSTP: " + String(Z_ScanSTP));
+
             //Q scan conditions
             if (true)
             {
@@ -5509,14 +5519,14 @@ int Function_Excecutation(String cmd, int cmd_No)
 
               if (Q_Time > 540)
               {
-                if( Acceptable_Delta_IL != 0.2 ){
+                if(Acceptable_Delta_IL != 0.2 ){
                   Acceptable_Delta_IL = 0.2; // Target IL changed 0.25
                   MSGOutput("Update Scan Condition: " + String(Acceptable_Delta_IL));     
                 }
               }
             }
 
-            PD_Now = Cal_PD_Input_IL(Get_PD_Points * 4);  //Increase IL stability
+            PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
 
             if (PD_Now >= (AutoCuring_Best_IL - (Acceptable_Delta_IL)))
             {
@@ -5532,7 +5542,7 @@ int Function_Excecutation(String cmd, int cmd_No)
               //Q Scan
               if (true)
               {
-                PD_Now = Cal_PD_Input_IL(Get_PD_Points * 4);  //Increase IL stability
+                PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
 
                 if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
                 {
@@ -5543,7 +5553,7 @@ int Function_Excecutation(String cmd, int cmd_No)
                   if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
                     Fine_Scan(1, false); //Q Scan X
 
-                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=750){
+                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=800){
                     MSGOutput("Delta IL less than 0.25 , break curing loop");
                     MSGOutput("X maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
                     + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
@@ -5558,7 +5568,7 @@ int Function_Excecutation(String cmd, int cmd_No)
                 if (isStop)
                   break;
 
-                PD_Now = Cal_PD_Input_IL(Get_PD_Points * 4);  //Increase IL stability
+                PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
                 MSGOutput("Q_State: " + String(Q_State));
 
                 if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL) || Q_State == 1)
@@ -5570,7 +5580,7 @@ int Function_Excecutation(String cmd, int cmd_No)
                   if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
                     Fine_Scan(2, false); //------------------------------------------------------Q Scan Y
 
-                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=750){
+                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=800){
                     MSGOutput("Delta IL less than 0.25 , break curing loop");
                     MSGOutput("Y maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
                     + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
@@ -5593,10 +5603,12 @@ int Function_Excecutation(String cmd, int cmd_No)
                 {
                   //-----------------------------------------------------------Q Scan Z
                   CMDOutput("AS");
-                  K_OK = Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 70, 0, 120, StopValue, 600, 2, "Z Scan, Trip_");
+
+                  K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, Z_ScanSTP, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Scan,Trip_");
                   if (!K_OK)
                   {
-                    Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 70, 0, 120, StopValue, 600, 2, "Z Re-Scan, Trip_");
+                    Scan_AllRange_TwoWay(2, FS_Count_Z, Z_ScanSTP, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Re-Scan,Trip_");
+                    // Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 30, 0, 100, StopValue, Get_PD_Points, 2, "Z Re-Scan, Trip_");
                   }
                   
                   CMDOutput("%:");
