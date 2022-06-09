@@ -165,7 +165,7 @@ int AQ_Scan_Steps_Z_D = 50;   //50, 50
 int AA_ScanFinal_Scan_Delay_X_A = 100;
 int AA_ScanFinal_Scan_Delay_Y_A = 60;
 
-int AQ_Total_TimeSpan = 840;
+int AQ_Total_TimeSpan = 860;
 
 uint16_t FS_Count_X = 7;
 uint16_t FS_Steps_X = 25;
@@ -5377,11 +5377,12 @@ int Function_Excecutation(String cmd, int cmd_No)
           btn_isTrigger = false;
 
           isILStable = false;
+          bool isStopAlign = false;
 
           ButtonSelected = -1;
 
           double IL_stable_count = 0;
-          double Acceptable_Delta_IL = 12; //0.8
+          double Acceptable_Delta_IL = 10; //12
           Q_Time = 0;
 
           time_curing_0 = millis();
@@ -5463,11 +5464,12 @@ int Function_Excecutation(String cmd, int cmd_No)
             if (true)
             {
               //IL Stable Time ,  70 secs,  curing time threshold , 12.5 mins
-              if (time_curing_2 - time_curing_1 > 70000 && Q_Time >= 800) // 800
+              if (time_curing_2 - time_curing_1 > 70000 && Q_Time >= 820) // 800
               {
                 MSGOutput("IL Stable - Stop Auto Curing");
-                isStop = true;
-                break;
+                isStopAlign = true;
+                // isStop = true;
+                // break;
               }
               //Total curing time , 14 mins, 840s
               else if (Q_Time >= AQ_Total_TimeSpan - 1)
@@ -5480,7 +5482,8 @@ int Function_Excecutation(String cmd, int cmd_No)
               if (isILStable && (Q_Time) >= 800) //800
               {
                 MSGOutput("IL Stable in Scan - Stop Auto Curing");
-                break;
+                isStopAlign = true;
+                // break;
               }
             }
 
@@ -5540,7 +5543,7 @@ int Function_Excecutation(String cmd, int cmd_No)
               MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
 
               //Q Scan
-              if (true)
+              if (true && Q_Time <= 900 && !isStopAlign)
               {
                 PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
 
@@ -5553,11 +5556,12 @@ int Function_Excecutation(String cmd, int cmd_No)
                   if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
                     Fine_Scan(1, false); //Q Scan X
 
-                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=800){
+                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820){
                     MSGOutput("Delta IL less than 0.25 , break curing loop");
                     MSGOutput("X maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
                     + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
-                    break;
+                    isStopAlign = true;
+                    // break;
                   }
                 }
 
@@ -5580,11 +5584,12 @@ int Function_Excecutation(String cmd, int cmd_No)
                   if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
                     Fine_Scan(2, false); //------------------------------------------------------Q Scan Y
 
-                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=800){
+                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820){
                     MSGOutput("Delta IL less than 0.25 , break curing loop");
                     MSGOutput("Y maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
                     + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
-                    break;
+                    isStopAlign = true;
+                    // break;
                   }
                 }
 
@@ -5602,6 +5607,10 @@ int Function_Excecutation(String cmd, int cmd_No)
                 if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
                 {
                   //-----------------------------------------------------------Q Scan Z
+
+                  digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+                  delay(5);
+
                   CMDOutput("AS");
 
                   K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, Z_ScanSTP, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Scan,Trip_");
@@ -5628,7 +5637,8 @@ int Function_Excecutation(String cmd, int cmd_No)
                 if (IL_stable_count > 4)
                 {
                   MSGOutput("IL stable to break");
-                  break;
+                  isStopAlign = true;
+                  // break;
                 }
               }
 
