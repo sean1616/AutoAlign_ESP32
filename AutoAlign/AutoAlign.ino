@@ -5464,9 +5464,9 @@ int Function_Excecutation(String cmd, int cmd_No)
             if (true)
             {
               //IL Stable Time ,  70 secs,  curing time threshold , 12.5 mins
-              if (time_curing_2 - time_curing_1 > 70000 && Q_Time >= 820) // 800
+              if (time_curing_2 - time_curing_1 > 70000 && Q_Time >= 820 && !isStopAlign) // 800
               {
-                MSGOutput("IL Stable - Stop Auto Curing");
+                MSGOutput("Update : IL Stable - Stop Auto Curing");
                 isStopAlign = true;
                 // isStop = true;
                 // break;
@@ -5479,12 +5479,12 @@ int Function_Excecutation(String cmd, int cmd_No)
                 break;
               }
 
-              if (isILStable && (Q_Time) >= 800) //800
-              {
-                MSGOutput("IL Stable in Scan - Stop Auto Curing");
-                isStopAlign = true;
-                // break;
-              }
+              // if (isILStable && (Q_Time) >= 800 && !isStopAlign) //800
+              // {
+              //   MSGOutput("IL Stable in Scan - Stop Auto Curing");
+              //   isStopAlign = true;
+              //   // break;
+              // }
             }
 
             if (isStop)
@@ -5536,7 +5536,7 @@ int Function_Excecutation(String cmd, int cmd_No)
               time_curing_2 = millis();
               continue;
             }
-            else
+            else  //Start Align
             {
               time_curing_3 = millis();
               Q_Time = (time_curing_3 - time_curing_0) / 1000;
@@ -5556,10 +5556,10 @@ int Function_Excecutation(String cmd, int cmd_No)
                   if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
                     Fine_Scan(1, false); //Q Scan X
 
-                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820){
-                    MSGOutput("Delta IL less than 0.25 , break curing loop");
-                    MSGOutput("X maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
-                    + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
+                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820 && !isStopAlign){
+                    MSGOutput("Update : Delta IL less than 0.25 , break curing loop");
+                    // MSGOutput("X maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
+                    // + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
                     isStopAlign = true;
                     // break;
                   }
@@ -5584,10 +5584,10 @@ int Function_Excecutation(String cmd, int cmd_No)
                   if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
                     Fine_Scan(2, false); //------------------------------------------------------Q Scan Y
 
-                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820){
-                    MSGOutput("Delta IL less than 0.25 , break curing loop");
-                    MSGOutput("Y maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
-                    + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
+                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820 && !isStopAlign){
+                    MSGOutput("Update : Delta IL less than 0.25 , break curing loop");
+                    // MSGOutput("Y maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
+                    // + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
                     isStopAlign = true;
                     // break;
                   }
@@ -5634,7 +5634,7 @@ int Function_Excecutation(String cmd, int cmd_No)
               {
                 IL_stable_count++;
 
-                if (IL_stable_count > 4)
+                if (IL_stable_count > 4 && !isStopAlign)
                 {
                   MSGOutput("IL stable to break");
                   isStopAlign = true;
