@@ -5464,7 +5464,7 @@ int Function_Excecutation(String cmd, int cmd_No)
             if (true)
             {
               //IL Stable Time ,  70 secs,  curing time threshold , 12.5 mins
-              if (time_curing_2 - time_curing_1 > 70000 && Q_Time >= 820 && !isStopAlign) // 800
+              if (time_curing_2 - time_curing_1 > 70000 && Q_Time >= 860 && !isStopAlign) // 800
               {
                 MSGOutput("Update : IL Stable - Stop Auto Curing");
                 isStopAlign = true;
@@ -5538,112 +5538,116 @@ int Function_Excecutation(String cmd, int cmd_No)
             }
             else  //Start Align
             {
-              time_curing_3 = millis();
-              Q_Time = (time_curing_3 - time_curing_0) / 1000;
-              MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
-
-              //Q Scan
-              if (true && Q_Time <= 900 && !isStopAlign)
+              if(!isStopAlign)
               {
-                PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
+                time_curing_3 = millis();
+                Q_Time = (time_curing_3 - time_curing_0) / 1000;                
 
-                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
+                //Q Scan
+                if (true && Q_Time <= 900 && !isStopAlign)
                 {
-                  Fine_Scan(1, false); //Q Scan X
+                  MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
 
-                  MSGOutput("X PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
+                  PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
 
-                  if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
+                  if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
+                  {
                     Fine_Scan(1, false); //Q Scan X
 
-                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820 && !isStopAlign){
-                    MSGOutput("Update : Delta IL less than 0.25 , break curing loop");
-                    // MSGOutput("X maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
-                    // + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
-                    isStopAlign = true;
-                    // break;
+                    MSGOutput("X PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
+
+                    if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
+                      Fine_Scan(1, false); //Q Scan X
+
+                    if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820 && !isStopAlign){
+                      MSGOutput("Update : Delta IL less than 0.25 , break curing loop");
+                      // MSGOutput("X maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
+                      // + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
+                      isStopAlign = true;
+                      // break;
+                    }
                   }
-                }
 
-                time_curing_3 = millis();
-                Q_Time = (time_curing_3 - time_curing_0) / 1000;
-                MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
+                  time_curing_3 = millis();
+                  Q_Time = (time_curing_3 - time_curing_0) / 1000;
+                  MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
 
-                if (isStop)
-                  break;
+                  if (isStop)
+                    break;
 
-                PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
-                MSGOutput("Q_State: " + String(Q_State));
+                  PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
+                  MSGOutput("Q_State: " + String(Q_State));
 
-                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL) || Q_State == 1)
-                {
-                  Fine_Scan(2, false); //--------------------------------------------------------Q Scan Y
-
-                  MSGOutput("Y PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
-
-                  if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
-                    Fine_Scan(2, false); //------------------------------------------------------Q Scan Y
-
-                  if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820 && !isStopAlign){
-                    MSGOutput("Update : Delta IL less than 0.25 , break curing loop");
-                    // MSGOutput("Y maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
-                    // + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
-                    isStopAlign = true;
-                    // break;
-                  }
-                }
-
-                time_curing_3 = millis();
-                Q_Time = (time_curing_3 - time_curing_0) / 1000;
-                MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
-
-                if (isStop)
-                  break;
-
-                PD_Before = Cal_PD_Input_IL(Get_PD_Points);
-
-                bool K_OK = true;
-
-                if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
-                {
-                  //-----------------------------------------------------------Q Scan Z
-
-                  digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
-                  delay(5);
-
-                  CMDOutput("AS");
-
-                  K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, Z_ScanSTP, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Scan,Trip_");
-                  if (!K_OK)
+                  if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL) || Q_State == 1)
                   {
-                    Scan_AllRange_TwoWay(2, FS_Count_Z, Z_ScanSTP, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Re-Scan,Trip_");
-                    // Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 30, 0, 100, StopValue, Get_PD_Points, 2, "Z Re-Scan, Trip_");
+                    Fine_Scan(2, false); //--------------------------------------------------------Q Scan Y
+
+                    MSGOutput("Y PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
+
+                    if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
+                      Fine_Scan(2, false); //------------------------------------------------------Q Scan Y
+
+                    if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820 && !isStopAlign){
+                      MSGOutput("Update : Delta IL less than 0.25 , break curing loop");
+                      // MSGOutput("Y maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
+                      // + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
+                      isStopAlign = true;
+                      // break;
+                    }
                   }
-                  
-                  CMDOutput("%:");
+
+                  time_curing_3 = millis();
+                  Q_Time = (time_curing_3 - time_curing_0) / 1000;
+                  MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
+
+                  if (isStop)
+                    break;
+
+                  PD_Before = Cal_PD_Input_IL(Get_PD_Points);
+
+                  bool K_OK = true;
+
+                  if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
+                  {
+                    //-----------------------------------------------------------Q Scan Z
+
+                    digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+                    delay(5);
+
+                    CMDOutput("AS");
+
+                    K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, Z_ScanSTP, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Scan,Trip_");
+                    if (!K_OK)
+                    {
+                      Scan_AllRange_TwoWay(2, FS_Count_Z, Z_ScanSTP, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Re-Scan,Trip_");
+                      // Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 30, 0, 100, StopValue, Get_PD_Points, 2, "Z Re-Scan, Trip_");
+                    }
+                    
+                    CMDOutput("%:");
+                  }
+
+                  if (isStop)
+                    break;
                 }
 
-                if (isStop)
-                  break;
-              }
+                PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+                // MSGOutput("Q_State: " + String(Q_State));
 
-              PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-              MSGOutput("Q_State: " + String(Q_State));
-
-              if (abs(PD_Before - PD_Now) < 0.3 && (time_curing_3 - time_curing_0) > 750000)
-              {
-                IL_stable_count++;
-
-                if (IL_stable_count > 4 && !isStopAlign)
+                if (abs(PD_Before - PD_Now) < 0.3 && (time_curing_3 - time_curing_0) > 750000)
                 {
-                  MSGOutput("IL stable to break");
-                  isStopAlign = true;
-                  // break;
-                }
-              }
+                  IL_stable_count++;
 
-              time_curing_1 = millis();
-              time_curing_2 = time_curing_1;
+                  if (IL_stable_count > 4 && !isStopAlign)
+                  {
+                    MSGOutput("IL stable to break");
+                    isStopAlign = true;
+                    // break;
+                  }
+                }
+
+                time_curing_1 = millis();
+                time_curing_2 = time_curing_1;
+              }
             }
           }
 
