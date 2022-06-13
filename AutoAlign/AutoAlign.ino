@@ -5615,15 +5615,18 @@ int Function_Excecutation(String cmd, int cmd_No)
                     delay(5);
 
                     CMDOutput("AS");
-
                     K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, Z_ScanSTP, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Scan,Trip_");
+                    CMDOutput("%:");
+                    
                     if (!K_OK)
                     {
+                      CMDOutput("AS");
                       Scan_AllRange_TwoWay(2, FS_Count_Z, Z_ScanSTP, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Re-Scan,Trip_");
                       // Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 30, 0, 100, StopValue, Get_PD_Points, 2, "Z Re-Scan, Trip_");
+                      CMDOutput("%:");
                     }
                     
-                    CMDOutput("%:");
+                    
                   }
 
                   if (isStop)
