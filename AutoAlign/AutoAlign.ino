@@ -5575,6 +5575,9 @@ int Function_Excecutation(String cmd, int cmd_No)
                   if (isStop)
                     break;
 
+                  digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+                  delay(5);
+
                   PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
                   MSGOutput("Q_State: " + String(Q_State));
 
@@ -5603,6 +5606,9 @@ int Function_Excecutation(String cmd, int cmd_No)
                   if (isStop)
                     break;
 
+                  digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+                  delay(5);
+
                   PD_Before = Cal_PD_Input_IL(Get_PD_Points);
 
                   bool K_OK = true;
@@ -5629,6 +5635,9 @@ int Function_Excecutation(String cmd, int cmd_No)
                     
                   }
 
+                  digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+                  delay(5);
+                  
                   if (isStop)
                     break;
                 }
