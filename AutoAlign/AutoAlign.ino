@@ -5197,29 +5197,7 @@ int Function_Classification(String cmd, int ButtonSelected)
       cmd.remove(0, 3);
       cmd_No = cmd.toInt();
       delay(10);
-
-      //          cmd_No = 4;  //Auto-Align
-      //          cmd_No = 5;   //Fine scan
-      //          cmd_No = 6;   //Auto curing
-      //          cmd_No = 7;  //To re-load position
-      //          cmd_No = 8;  //To Home
-      //          cmd_No = 9;  //To Home
-      //          cmd_No = 10;  //To Home
-      //          cmd_No = 16;  //Set reLoad
-      //          cmd_No = 17;  //Set home
-      //          cmd_No = 18;  //Set Z target
-      //          cmd_No = 19;  //Get ref
-      //          cmd_No = 20;  //Spiral
-      //          cmd_No = 21;  //Keep print IL to PC
-      //          cmd_No = 22;  //Scan X
-      //          cmd_No = 23;  //Scan Y
-      //          cmd_No = 24;  //Scan Z
-    }
-
-    //Action : Reply
-    if (true)
-    {
-    }
+    }    
   }
   else if (ButtonSelected >= 0)
   {
@@ -5428,6 +5406,8 @@ int Function_Excecutation(String cmd, int cmd_No)
             // MSGOutput("cmd in Q loop: " + String(cmd));
 
             cmd_No = Function_Classification(cmd, ButtonSelected);
+            if(cmd_No == 30) 
+              EmergencyStop();
 
             cmd = ""; //Reset command from serial port
 
@@ -6063,6 +6043,11 @@ int Function_Excecutation(String cmd, int cmd_No)
 
       case 29: /* Get XYZ Position */
         DataOutput(false);
+        cmd_No = 0;
+        break;
+
+      case 30: /* Emergency Stop */
+        EmergencyStop();
         cmd_No = 0;
         break;
 
