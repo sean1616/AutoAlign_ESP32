@@ -6,13 +6,13 @@
 #include <curveFitting.h>
 // #include <U8glib.h>
 #include <U8g2lib.h>
-#include <esp_now.h>
+// #include <BluetoothSerial.h>
 #include <WiFi.h>
-// #include <HTTPClient.h>
+#include <HTTPClient.h>
 #include <Wire.h>
 #include <Adafruit_ADS1X15.h>
 
-// #include <ESPAsyncWebServer.h>
+#include <ESPAsyncWebServer.h>
 
 TaskHandle_t Task_1;
 #define WDT_TIMEOUT 3
@@ -1624,35 +1624,35 @@ void EmergencyStop()
   PageLevel = 0;
 }
 //------------------------------------------------------------------------------------------------------------------------------------------
-// String httpGETRequest(const char *serverName)
-// {
-//   WiFiClient client;
-//   HTTPClient http;
+String httpGETRequest(const char *serverName)
+{
+  WiFiClient client;
+  HTTPClient http;
 
-//   // Your Domain name with URL path or IP address with path
-//   http.begin(client, serverName);
+  // Your Domain name with URL path or IP address with path
+  http.begin(client, serverName);
 
-//   // Send HTTP POST request
-//   int httpResponseCode = http.GET();
+  // Send HTTP POST request
+  int httpResponseCode = http.GET();
 
-//   String payload = "--";
+  String payload = "--";
 
-//   if (httpResponseCode > 0)
-//   {
-//     // Serial.print("HTTP Response code: ");
-//     // Serial.println(httpResponseCode);
-//     payload = http.getString();
-//   }
-//   else
-//   {
-//     Serial.print("Error code: ");
-//     Serial.println(httpResponseCode);
-//   }
-//   // Free resources
-//   http.end();
+  if (httpResponseCode > 0)
+  {
+    // Serial.print("HTTP Response code: ");
+    // Serial.println(httpResponseCode);
+    payload = http.getString();
+  }
+  else
+  {
+    Serial.print("Error code: ");
+    Serial.println(httpResponseCode);
+  }
+  // Free resources
+  http.end();
 
-//   return payload;
-// }
+  return payload;
+}
 //------------------------------------------------------------------------------------------------------------------------------------------
 // String httpTestRequest(const char *serverName)
 // {
@@ -1689,50 +1689,37 @@ void EmergencyStop()
 // }
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-// String httpTestRequest(const char *serverName, const char *msg)
-// {
-//   WiFiClient client;
-//   HTTPClient http;
+String httpTestRequest(const char *serverName, const char *msg)
+{
+  WiFiClient client;
+  HTTPClient http;
 
-//   // Your Domain name with URL path or IP address with path
-//   http.begin(client, serverName);
+  // Your Domain name with URL path or IP address with path
+  http.begin(client, serverName);
 
-//   http.addHeader("Station", ID.c_str());
-//   http.addHeader("Data", msg);
-//   int httpResponseCode = http.GET();
+  http.addHeader("Station", ID.c_str());
+  http.addHeader("Data", msg);
+  int httpResponseCode = http.GET();
 
-//   String payload = "--";
+  String payload = "--";
 
-//   if (httpResponseCode <= 0)
-//   {
-//     Serial.print("Error code: ");
-//     Serial.println(httpResponseCode);
-//   }
+  if (httpResponseCode <= 0)
+  {
+    Serial.print("Error code: ");
+    Serial.println(httpResponseCode);
+  }
 
-//   http.end();
+  http.end();
 
-//   return payload;
-// }
+  return payload;
+}
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-#pragma region ESP_Now
-
-uint8_t broadcastAddress[] = {0x8C, 0x4B, 0x14, 0x16, 0x35, 0x88};   //Server Mac address
-
-String SSD, Msg;
-
-typedef struct struct_send_message {
-    String client_name = "A004";
+typedef struct struct_send_msg {
+    // String msg;
     char msg[30];
-    // char value[20];
-} struct_send_message;
-
-// Create a struct_message
-struct_send_message sendmsg;
-
-typedef struct struct_receive_msg_UI_Data {
-    String msg;
+    String client_name;
     double _Target_IL;
     int _Q_Z_offset;
     double _ref_Dac;
@@ -1740,109 +1727,7 @@ typedef struct struct_receive_msg_UI_Data {
     int _speed_y;
     int _speed_z;
     int _QT;
-} struct_receive_msg_UI_Data;
-
-// Create a struct_message
-struct_receive_msg_UI_Data incoming_UI_Data;
-
-// Callback when data is sent
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  status == ESP_NOW_SEND_SUCCESS ? SSD ="Delivery Success" : SSD ="Delivery Fail";
-  if(status == 0)
-  {
-    // Serial.println("OK");
-  }
-}
-
-// Callback when data is received
-void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
-  memcpy(&incoming_UI_Data, incomingData, sizeof(incoming_UI_Data));
-  // Serial.print("Bytes received: ");
-  // Serial.println(len);
-  Msg = incoming_UI_Data.msg;
-  Msg.trim();
-  Serial.println("Incoming:" + Msg);
-
-  if(Msg == "Core:FS" || Msg == "Core:AA")
-  {
-    isLCD = true;
-    PageLevel = 101;
-    updateUI(PageLevel);
-  }
-  else if(Msg == "Core:AQ")
-  {
-    Q_Time = incoming_UI_Data._QT;
-    isLCD = true;
-    PageLevel = 103;
-    updateUI(103);
-  }
-  else if(Msg == "Core:Menu")
-  {
-    Target_IL = incoming_UI_Data._Target_IL;
-    ref_Dac = incoming_UI_Data._ref_Dac;
-    AQ_Scan_Compensation_Steps_Z_A = incoming_UI_Data._Q_Z_offset;
-    delayBetweenStep_X = incoming_UI_Data._speed_x;
-    delayBetweenStep_Y = incoming_UI_Data._speed_y;
-    delayBetweenStep_Z = incoming_UI_Data._speed_z;
-
-    isLCD = true;
-    PageLevel = 0;
-    updateUI(PageLevel);
-  }
-  else if(Msg == "Core:UI?")
-  {
-    //  Serial.println("Target_IL:" + String(incoming_UI_Data._Target_IL));
-    Target_IL = incoming_UI_Data._Target_IL;
-    ref_Dac = incoming_UI_Data._ref_Dac;
-    AQ_Scan_Compensation_Steps_Z_A = incoming_UI_Data._Q_Z_offset;
-    delayBetweenStep_X = incoming_UI_Data._speed_x;
-    delayBetweenStep_Y = incoming_UI_Data._speed_y;
-    delayBetweenStep_Z = incoming_UI_Data._speed_z;
-  }
-}
-
-void DataSent_Core(String MSG)
-{
-  MSG.toCharArray(sendmsg.msg, 30);
-  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &sendmsg, sizeof(sendmsg));
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void ESP_Now_Initialize()
-{
-  // Init ESP-NOW
-  WiFi.mode(WIFI_STA);
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("Error initializing ESP-NOW");
-    return;
-  }
-  else
-    Serial.println("Initializing ESP-NOW");  
-
-  // 绑定數據接收端
-  esp_now_peer_info_t peerInfo;
-  memcpy(peerInfo.peer_addr, broadcastAddress, 6); // Register peer
-  peerInfo.channel = 0;
-  peerInfo.encrypt = false;
-
-  // Add peer 增加一個PEER到名單列
-  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
-    Serial.println("Failed to add peer");
-    return;
-  }
-
-  // 設定發送數據時CALLBACK的函式名稱。 通過ESP-NOW傳送數據後，將被呼叫通知是否傳送成功。
-  // Once ESPNow is successfully Init, we will register for Send CB to
-  // get the status of Trasnmitted packet
-  esp_now_register_send_cb(OnDataSent);
-
-  //設定收到數據時CALLBACK的函式名稱。 通過ESP-NOW接收到數據後，將被呼叫以便進一步處理資料。
-  // Register for a callback function that will be called when data is received
-  esp_now_register_recv_cb(OnDataRecv);
-}
-
-#pragma endregion
+} struct_send_msg;
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -1859,12 +1744,6 @@ void setup()
   // Serial.print("ESP32 Board MAC Address:  ");
   // Serial.println(WiFi.macAddress());
 
-  // return;
-
-  ESP_Now_Initialize();
-
-  return;
-
   //I2C Setting for 16 bits adc (Get PD value)
   I2CADS.begin(I2C_SDA, I2C_SCL, 100000);
   ads.setGain(GAIN_TWO);        // 2x gain   +/- 2.048V  1 bit = 0.0625mV
@@ -1872,55 +1751,70 @@ void setup()
     Serial.println("Failed to initialize ADS.");
     // while (1);
   }
-  
+
+  // DAC vs dBm
+  // PD_Ref_Array = 
+  // {
+  //   {24260, -3},
+  //   {23644, -4},
+  //   {23282, -5},
+  //   {22571, -7},
+  //   {21910, -9},
+  //   {21182, -11},
+  //   {20525, -13},
+  //   {19854, -15},
+  //   {19127, -17},
+  //   {18460, -19},
+  //   {17739, -21},
+  //   {16354, -25},
+  //   {14663, -30},
+  //   {11299, -40},
+  //   {8903, -50},
+  // };
 
   #pragma region Server Setting
   
-  if(false)
+  server_ID = ReadInfoEEPROM(88, 32);
+  server_Password = ReadInfoEEPROM(120, 32);
+
+  if (Contains(server_ID, "??") || server_ID == "")
   {
-    // server_ID = ReadInfoEEPROM(88, 32);
-    // server_Password = ReadInfoEEPROM(120, 32);
+    server_ID = "GFI-ESP32-Access-Point";
+  }
 
-    // if (Contains(server_ID, "??") || server_ID == "")
-    // {
-    //   server_ID = "GFI-ESP32-Access-Point";
-    // }
+  if (Contains(server_Password, "??"))
+  {
+    server_Password = "22101782";
+  }
 
-    // if (Contains(server_Password, "??"))
-    // {
-    //   server_Password = "22101782";
-    // }
+  Serial.println("Server ID: " + server_ID);
+  Serial.println("Server Password: " + server_Password);
 
-    // Serial.println("Server ID: " + server_ID);
-    // Serial.println("Server Password: " + server_Password);
+  WiFi.begin(server_ID.c_str(), server_Password.c_str());
+  // WiFi.begin(ssid, password);
+  Serial.println("Connecting");
 
-    // WiFi.begin(server_ID.c_str(), server_Password.c_str());
-    // // WiFi.begin(ssid, password);
-    // Serial.println("Connecting");
+  int wifiConnectTime = 0;
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(300);
+    Serial.print(".");
 
-    // int wifiConnectTime = 0;
-    // while (WiFi.status() != WL_CONNECTED)
-    // {
-    //   delay(300);
-    //   Serial.print(".");
+    wifiConnectTime += 300;
+    if (wifiConnectTime > 2400)
+      break;
+  }
 
-    //   wifiConnectTime += 300;
-    //   if (wifiConnectTime > 2400)
-    //     break;
-    // }
-
-    // if (wifiConnectTime <= 2400)
-    // {
-    //   Serial.println("");
-    //   Serial.print("Connected to WiFi network with IP Address:");
-    //   Serial.println(WiFi.localIP());
-    //   isWiFiConnected = true;
-    // }
-    // else
-    // {
-    //   Serial.println("Connected to WiFi network failed");
-    // }
-
+  if (wifiConnectTime <= 2400)
+  {
+    Serial.println("");
+    Serial.print("Connected to WiFi network with IP Address:");
+    Serial.println(WiFi.localIP());
+    isWiFiConnected = true;
+  }
+  else
+  {
+    Serial.println("Connected to WiFi network failed");
   }
 
   #pragma endregion
@@ -1971,7 +1865,12 @@ void setup()
 #pragma endregion
 
   Serial.println("~~ Auto-Align System ~~");
-  
+  // BT.println("~~ Auto-Align System ~~");
+
+  // Serial.println("Watch Dog Online");
+  // esp_task_wdt_init(WDT_TIMEOUT, true); //enable panic so ESP32 restarts
+  // esp_task_wdt_add(NULL);               //add current thread to WDT watch
+ 
  #pragma region EEPROM Setting
   String eepromString;
 
@@ -2099,26 +1998,28 @@ void setup()
 
   #pragma endregion
 
-  // isLCD = true;
-  // LCD_Update_Mode = 0;
-  // PageLevel = 0;
-  // PageItemsCount = MENU_ITEMS;
-  // updateUI(0);
+  isLCD = true;
+  LCD_Update_Mode = 0;
+  PageLevel = 0;
+  PageItemsCount = MENU_ITEMS;
+  updateUI(0);
+
   
-  // timer_Get_IL_1 = millis();
+  timer_Get_IL_1 = millis();
 
-  // if(Get_PD_Points < 1)
-  //   Get_PD_Points = 1;
-  // else if(Get_PD_Points > 100)
-  //   Get_PD_Points = 100;
+  if(Get_PD_Points < 1)
+    Get_PD_Points = 1;
+  else if(Get_PD_Points > 100)
+    Get_PD_Points = 100;
 
-  // Cal_PD_Input_IL(Get_PD_Points);
 
-  // timer_Get_IL_2 = millis();
+  Cal_PD_Input_IL(Get_PD_Points);
+
+  timer_Get_IL_2 = millis();
 
  
-  // Serial.println("Get_PD_Points:" + String(Get_PD_Points));
-  // Serial.println("Timespan of Get PD IL:" + String(timer_Get_IL_2 - timer_Get_IL_1));
+  Serial.println("Get_PD_Points:" + String(Get_PD_Points));
+  Serial.println("Timespan of Get PD IL:" + String(timer_Get_IL_2 - timer_Get_IL_1));
 
 
   //在core 0啟動 mision 1
@@ -2142,10 +2043,6 @@ const char *serverTestData = "http://192.168.4.1/?param1=10&param2=hi";
 
 void loop()
 {
-    // DataSent_Core("BS", "0");
-    DataSent_Core("BSS");
-   delay(1000);
-
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousMillis >= interval && false)
@@ -6431,6 +6328,41 @@ int Function_Excecutation(String cmd, int cmd_No)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+void BLE_Function(String cmd)
+{
+  //Bluetooth : Receive Data
+  // if (cmd == "" && cmd_No == 0)
+  // {
+  //   // Serial.println("BLE mode");
+  //   if (BT.connected(30))
+  //   {
+  //     isMsgShow = true;
+
+  //     if (BT.available())
+  //     {
+  //       String BTdata = BT.readString();
+
+  //       BT.println(BTdata);
+  //       Serial.println(BTdata);
+
+  //       if (BTdata == "Z+")
+  //       {
+  //         Move_Motor(Z_DIR_Pin, Z_STP_Pin, true, 500, 8, 150, true);
+  //       }
+  //       else if (BTdata == "Z-")
+  //       {
+  //         Move_Motor(Z_DIR_Pin, Z_STP_Pin, true, 500, 8, 150, true);
+  //       }
+  //     }
+  //   }
+  // }
+
+  // if (ButtonSelected < 0 && cmd == "")
+  // {
+  //   cmd_No = 0;
+  // }
+}
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 // bool isWiFiConnected = false;
@@ -6439,10 +6371,10 @@ void CMDOutput(String cmd)
   String msg = "CMD::" + cmd;
   Serial.println(msg);
 
-  // if (isWiFiConnected)
-  // {
-  //   httpTestRequest(ServerIP.c_str(), msg.c_str());
-  // }
+  if (isWiFiConnected)
+  {
+    httpTestRequest(ServerIP.c_str(), msg.c_str());
+  }
 
   // Check WiFi connection status
   // if (WiFi.status() == WL_CONNECTED)
@@ -6468,10 +6400,10 @@ void MSGOutput(String msg)
   Serial.println(msg);
 
   // Check WiFi connection status
-  // if (isWiFiConnected)
-  // {
-  //   httpTestRequest(ServerIP.c_str(), msg.c_str());
-  // }  
+  if (isWiFiConnected)
+  {
+    httpTestRequest(ServerIP.c_str(), msg.c_str());
+  }  
 }
 
 void DataOutput()
