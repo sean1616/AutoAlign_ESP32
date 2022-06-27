@@ -1723,7 +1723,7 @@ uint8_t broadcastAddress[] = {0x8C, 0x4B, 0x14, 0x16, 0x35, 0x88};   //Server Ma
 String SSD, Msg;
 
 typedef struct struct_send_message {
-    String client_name = "A004";
+    String client_name = ID;
     char msg[30];
     // char value[20];
 } struct_send_message;
@@ -1801,7 +1801,7 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   }
 }
 
-void DataSent_Core(String MSG)
+void DataSent_Server(String MSG)
 {
   MSG.toCharArray(sendmsg.msg, 30);
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &sendmsg, sizeof(sendmsg));
@@ -1840,6 +1840,8 @@ void ESP_Now_Initialize()
   //設定收到數據時CALLBACK的函式名稱。 通過ESP-NOW接收到數據後，將被呼叫以便進一步處理資料。
   // Register for a callback function that will be called when data is received
   esp_now_register_recv_cb(OnDataRecv);
+
+   
 }
 
 #pragma endregion
@@ -1861,9 +1863,9 @@ void setup()
 
   // return;
 
-  ESP_Now_Initialize();
+  
 
-  return;
+  // return;
 
   //I2C Setting for 16 bits adc (Get PD value)
   I2CADS.begin(I2C_SDA, I2C_SCL, 100000);
@@ -1873,61 +1875,8 @@ void setup()
     // while (1);
   }
   
-
-  #pragma region Server Setting
-  
-  if(false)
-  {
-    // server_ID = ReadInfoEEPROM(88, 32);
-    // server_Password = ReadInfoEEPROM(120, 32);
-
-    // if (Contains(server_ID, "??") || server_ID == "")
-    // {
-    //   server_ID = "GFI-ESP32-Access-Point";
-    // }
-
-    // if (Contains(server_Password, "??"))
-    // {
-    //   server_Password = "22101782";
-    // }
-
-    // Serial.println("Server ID: " + server_ID);
-    // Serial.println("Server Password: " + server_Password);
-
-    // WiFi.begin(server_ID.c_str(), server_Password.c_str());
-    // // WiFi.begin(ssid, password);
-    // Serial.println("Connecting");
-
-    // int wifiConnectTime = 0;
-    // while (WiFi.status() != WL_CONNECTED)
-    // {
-    //   delay(300);
-    //   Serial.print(".");
-
-    //   wifiConnectTime += 300;
-    //   if (wifiConnectTime > 2400)
-    //     break;
-    // }
-
-    // if (wifiConnectTime <= 2400)
-    // {
-    //   Serial.println("");
-    //   Serial.print("Connected to WiFi network with IP Address:");
-    //   Serial.println(WiFi.localIP());
-    //   isWiFiConnected = true;
-    // }
-    // else
-    // {
-    //   Serial.println("Connected to WiFi network failed");
-    // }
-
-  }
-
-  #pragma endregion
-
   // u8g2_font_5x7_tf
   lcd.begin();
-
   lcd.setFont(u8g2_font_6x10_tf);
   lcd.clearDisplay();
 
@@ -1973,153 +1922,190 @@ void setup()
   Serial.println("~~ Auto-Align System ~~");
   
  #pragma region EEPROM Setting
-  String eepromString;
 
-  for (int i = 0; i < 511; i = i + 8)
+  if(true)
   {
-    eepromString = ReadInfoEEPROM(i, 8); //Reading EEPROM(int start_position, int data_length)
-    MSGOutput("EEPROM(" + String(i) + ") - " + eepromString);
+    String eepromString;
+
+    for (int i = 0; i < 511; i = i + 8)
+    {
+      eepromString = ReadInfoEEPROM(i, 8); //Reading EEPROM(int start_position, int data_length)
+      MSGOutput("EEPROM(" + String(i) + ") - " + eepromString);
+    }
+
+    eepromString = ReadInfoEEPROM(0, 8); //Reading EEPROM(int start_position, int data_length)
+    ref_Dac = eepromString.toDouble();
+    ref_IL = ILConverter(ref_Dac);
+    MSGOutput("Ref IL: " + String(ref_IL));
+
+    ID = ReadInfoEEPROM(8, 8);
+    MSGOutput("Board ID: " + ReadInfoEEPROM(8, 8)); 
+    sendmsg.client_name = ID;
+
+    Station_ID = ReadInfoEEPROM(16, 8);
+    MSGOutput("Station ID: " + ReadInfoEEPROM(16, 8)); 
+
+    eepromString = ReadInfoEEPROM(24, 8);
+    X_backlash = eepromString.toInt();
+    MSGOutput("X_backlash: " + String(X_backlash));
+
+    eepromString = ReadInfoEEPROM(32, 8);
+    Y_backlash = eepromString.toInt();
+    MSGOutput("Y_backlash: " + String(Y_backlash));
+
+    eepromString = ReadInfoEEPROM(40, 8);
+    Z_backlash = eepromString.toInt();
+    MSGOutput("Z_backlash: " + String(Z_backlash));
+
+    eepromString = ReadInfoEEPROM(48, 8);
+    delayBetweenStep_X = eepromString.toInt();
+    MSGOutput("delayBetweenStep_X: " + String(delayBetweenStep_X));
+
+    eepromString = ReadInfoEEPROM(56, 8);
+    delayBetweenStep_Y = eepromString.toInt();
+    MSGOutput("delayBetweenStep_Y: " + String(delayBetweenStep_Y));
+
+    eepromString = ReadInfoEEPROM(64, 8);
+    delayBetweenStep_Z = eepromString.toInt();
+    MSGOutput("delayBetweenStep_Z: " + String(delayBetweenStep_Z));
+
+    Target_IL = ReadInfoEEPROM(72, 8).toDouble();
+    MSGOutput("Target IL: " + String(Target_IL));
+
+    Get_PD_Points = ReadInfoEEPROM(152, 8).toInt();
+    MSGOutput("Get_PD_Points: " + String(Get_PD_Points));
+
+    AQ_Scan_Compensation_Steps_Z_A = ReadInfoEEPROM(160, 8).toInt();
+    MSGOutput("AQ_Scan_Compensation_Steps_Z_A: " + String(AQ_Scan_Compensation_Steps_Z_A));
+
+    AQ_Total_TimeSpan = ReadInfoEEPROM(168, 8).toInt();
+    MSGOutput("AQ_Total_TimeSpan: " + String(AQ_Total_TimeSpan));
+
+    AA_ScanFinal_Scan_Delay_X_A = ReadInfoEEPROM(80, 8).toInt();
+    MSGOutput("AA_ScanFinal_Scan_Delay_X_A: " + String(AA_ScanFinal_Scan_Delay_X_A));
+
+    AQ_Scan_Steps_Z_A = ReadInfoEEPROM(176, 8).toInt();
+    MSGOutput("AQ_Scan_Steps_Z_A: " + String(AQ_Scan_Steps_Z_A));
+
+    AQ_Scan_Steps_Z_B = ReadInfoEEPROM(184, 8).toInt();
+    MSGOutput("AQ_Scan_Steps_Z_B: " + String(AQ_Scan_Steps_Z_B));
+
+    AQ_Scan_Steps_Z_C = ReadInfoEEPROM(192, 8).toInt();
+    MSGOutput("AQ_Scan_Steps_Z_C: " + String(AQ_Scan_Steps_Z_C));
+
+    AQ_Scan_Steps_Z_D = ReadInfoEEPROM(200, 8).toInt();
+    MSGOutput("AQ_Scan_Steps_Z_D: " + String(AQ_Scan_Steps_Z_D));
+
+    FS_Count_X = ReadInfoEEPROM(EP_FS_Count_X, 8).toInt();
+    MSGOutput("FS_Count_X: " + String(FS_Count_X));
+
+    FS_Steps_X = ReadInfoEEPROM(EP_FS_Steps_X, 8).toInt();
+    MSGOutput("FS_Steps_X: " + String(FS_Steps_X));
+
+    FS_Stable_X = ReadInfoEEPROM(EP_FS_Stable_X, 8).toInt();
+    MSGOutput("FS_Stable_X: " + String(FS_Stable_X));
+
+    FS_DelaySteps_X = ReadInfoEEPROM(EP_FS_DelaySteps_X, 8).toInt();
+    MSGOutput("FS_DelaySteps_X: " + String(FS_DelaySteps_X));
+
+    FS_Avg_X = ReadInfoEEPROM(EP_FS_Avg_X, 8).toInt();
+    MSGOutput("FS_Avg_X: " + String(FS_Avg_X));
+
+    FS_Count_Y = ReadInfoEEPROM(EP_FS_Count_Y, 8).toInt();
+    MSGOutput("FS_Count_Y: " + String(FS_Count_Y));
+
+    FS_Steps_Y = ReadInfoEEPROM(EP_FS_Steps_Y, 8).toInt();
+    MSGOutput("FS_Steps_Y: " + String(FS_Steps_Y));
+
+    FS_Stable_Y = ReadInfoEEPROM(EP_FS_Stable_Y, 8).toInt();
+    MSGOutput("FS_Stable_Y: " + String(FS_Stable_Y));
+
+    FS_DelaySteps_Y = ReadInfoEEPROM(EP_FS_DelaySteps_Y, 8).toInt();
+    MSGOutput("FS_DelaySteps_Y: " + String(FS_DelaySteps_Y));
+
+    FS_Avg_Y = ReadInfoEEPROM(EP_FS_Avg_Y, 8).toInt();
+    MSGOutput("FS_Avg_Y: " + String(FS_Avg_Y));
+
+    FS_Count_Z = ReadInfoEEPROM(EP_FS_Count_Z, 8).toInt();
+    MSGOutput("FS_Count_Z: " + String(FS_Count_Z));
+
+    FS_Steps_Z = ReadInfoEEPROM(EP_FS_Steps_Z, 8).toInt();
+    MSGOutput("FS_Steps_Z: " + String(FS_Steps_Z));
+
+    FS_Stable_Z = ReadInfoEEPROM(EP_FS_Stable_Z, 8).toInt();
+    MSGOutput("FS_Stable_Z: " + String(FS_Stable_Z));
+
+    FS_DelaySteps_Z = ReadInfoEEPROM(EP_FS_DelaySteps_Z, 8).toInt();
+    MSGOutput("FS_DelaySteps_Z: " + String(FS_DelaySteps_Z));
+
+    FS_Avg_Z = ReadInfoEEPROM(EP_FS_Avg_Z, 8).toInt();
+    MSGOutput("FS_Avg_Z: " + String(FS_Avg_Z));
+
+    FS_Trips_X = ReadInfoEEPROM(EP_FS_Trips_X, 8).toInt();
+    MSGOutput("FS_Trips_X: " + String(FS_Trips_X));
+
+    FS_Trips_Y = ReadInfoEEPROM(EP_FS_Trips_Y, 8).toInt();
+    MSGOutput("FS_Trips_Y: " + String(FS_Trips_Y));
+
+    FS_Trips_Z = ReadInfoEEPROM(EP_FS_Trips_Z, 8).toInt();
+    MSGOutput("FS_Trips_Z: " + String(FS_Trips_Z));
   }
-
-  eepromString = ReadInfoEEPROM(0, 8); //Reading EEPROM(int start_position, int data_length)
-  ref_Dac = eepromString.toDouble();
-  ref_IL = ILConverter(ref_Dac);
-  MSGOutput("Ref IL: " + String(ref_IL));
-
-  ID = ReadInfoEEPROM(8, 8);
-  MSGOutput("Board ID: " + ReadInfoEEPROM(8, 8)); 
-
-  Station_ID = ReadInfoEEPROM(16, 8);
-  MSGOutput("Station ID: " + ReadInfoEEPROM(16, 8)); 
-
-  eepromString = ReadInfoEEPROM(24, 8);
-  X_backlash = eepromString.toInt();
-  MSGOutput("X_backlash: " + String(X_backlash));
-
-  eepromString = ReadInfoEEPROM(32, 8);
-  Y_backlash = eepromString.toInt();
-  MSGOutput("Y_backlash: " + String(Y_backlash));
-
-  eepromString = ReadInfoEEPROM(40, 8);
-  Z_backlash = eepromString.toInt();
-  MSGOutput("Z_backlash: " + String(Z_backlash));
-
-  eepromString = ReadInfoEEPROM(48, 8);
-  delayBetweenStep_X = eepromString.toInt();
-  MSGOutput("delayBetweenStep_X: " + String(delayBetweenStep_X));
-
-  eepromString = ReadInfoEEPROM(56, 8);
-  delayBetweenStep_Y = eepromString.toInt();
-  MSGOutput("delayBetweenStep_Y: " + String(delayBetweenStep_Y));
-
-  eepromString = ReadInfoEEPROM(64, 8);
-  delayBetweenStep_Z = eepromString.toInt();
-  MSGOutput("delayBetweenStep_Z: " + String(delayBetweenStep_Z));
-
-  Target_IL = ReadInfoEEPROM(72, 8).toDouble();
-  MSGOutput("Target IL: " + String(Target_IL));
-
-  Get_PD_Points = ReadInfoEEPROM(152, 8).toInt();
-  MSGOutput("Get_PD_Points: " + String(Get_PD_Points));
-
-  AQ_Scan_Compensation_Steps_Z_A = ReadInfoEEPROM(160, 8).toInt();
-  MSGOutput("AQ_Scan_Compensation_Steps_Z_A: " + String(AQ_Scan_Compensation_Steps_Z_A));
-
-  AQ_Total_TimeSpan = ReadInfoEEPROM(168, 8).toInt();
-  MSGOutput("AQ_Total_TimeSpan: " + String(AQ_Total_TimeSpan));
-
-  AA_ScanFinal_Scan_Delay_X_A = ReadInfoEEPROM(80, 8).toInt();
-  MSGOutput("AA_ScanFinal_Scan_Delay_X_A: " + String(AA_ScanFinal_Scan_Delay_X_A));
-
-  AQ_Scan_Steps_Z_A = ReadInfoEEPROM(176, 8).toInt();
-  MSGOutput("AQ_Scan_Steps_Z_A: " + String(AQ_Scan_Steps_Z_A));
-
-  AQ_Scan_Steps_Z_B = ReadInfoEEPROM(184, 8).toInt();
-  MSGOutput("AQ_Scan_Steps_Z_B: " + String(AQ_Scan_Steps_Z_B));
-
-  AQ_Scan_Steps_Z_C = ReadInfoEEPROM(192, 8).toInt();
-  MSGOutput("AQ_Scan_Steps_Z_C: " + String(AQ_Scan_Steps_Z_C));
-
-  AQ_Scan_Steps_Z_D = ReadInfoEEPROM(200, 8).toInt();
-  MSGOutput("AQ_Scan_Steps_Z_D: " + String(AQ_Scan_Steps_Z_D));
-
-  FS_Count_X = ReadInfoEEPROM(EP_FS_Count_X, 8).toInt();
-  MSGOutput("FS_Count_X: " + String(FS_Count_X));
-
-  FS_Steps_X = ReadInfoEEPROM(EP_FS_Steps_X, 8).toInt();
-  MSGOutput("FS_Steps_X: " + String(FS_Steps_X));
-
-  FS_Stable_X = ReadInfoEEPROM(EP_FS_Stable_X, 8).toInt();
-  MSGOutput("FS_Stable_X: " + String(FS_Stable_X));
-
-  FS_DelaySteps_X = ReadInfoEEPROM(EP_FS_DelaySteps_X, 8).toInt();
-  MSGOutput("FS_DelaySteps_X: " + String(FS_DelaySteps_X));
-
-  FS_Avg_X = ReadInfoEEPROM(EP_FS_Avg_X, 8).toInt();
-  MSGOutput("FS_Avg_X: " + String(FS_Avg_X));
-
-  FS_Count_Y = ReadInfoEEPROM(EP_FS_Count_Y, 8).toInt();
-  MSGOutput("FS_Count_Y: " + String(FS_Count_Y));
-
-  FS_Steps_Y = ReadInfoEEPROM(EP_FS_Steps_Y, 8).toInt();
-  MSGOutput("FS_Steps_Y: " + String(FS_Steps_Y));
-
-  FS_Stable_Y = ReadInfoEEPROM(EP_FS_Stable_Y, 8).toInt();
-  MSGOutput("FS_Stable_Y: " + String(FS_Stable_Y));
-
-  FS_DelaySteps_Y = ReadInfoEEPROM(EP_FS_DelaySteps_Y, 8).toInt();
-  MSGOutput("FS_DelaySteps_Y: " + String(FS_DelaySteps_Y));
-
-  FS_Avg_Y = ReadInfoEEPROM(EP_FS_Avg_Y, 8).toInt();
-  MSGOutput("FS_Avg_Y: " + String(FS_Avg_Y));
-
-  FS_Count_Z = ReadInfoEEPROM(EP_FS_Count_Z, 8).toInt();
-  MSGOutput("FS_Count_Z: " + String(FS_Count_Z));
-
-  FS_Steps_Z = ReadInfoEEPROM(EP_FS_Steps_Z, 8).toInt();
-  MSGOutput("FS_Steps_Z: " + String(FS_Steps_Z));
-
-  FS_Stable_Z = ReadInfoEEPROM(EP_FS_Stable_Z, 8).toInt();
-  MSGOutput("FS_Stable_Z: " + String(FS_Stable_Z));
-
-  FS_DelaySteps_Z = ReadInfoEEPROM(EP_FS_DelaySteps_Z, 8).toInt();
-  MSGOutput("FS_DelaySteps_Z: " + String(FS_DelaySteps_Z));
-
-  FS_Avg_Z = ReadInfoEEPROM(EP_FS_Avg_Z, 8).toInt();
-  MSGOutput("FS_Avg_Z: " + String(FS_Avg_Z));
-
-  FS_Trips_X = ReadInfoEEPROM(EP_FS_Trips_X, 8).toInt();
-  MSGOutput("FS_Trips_X: " + String(FS_Trips_X));
-
-  FS_Trips_Y = ReadInfoEEPROM(EP_FS_Trips_Y, 8).toInt();
-  MSGOutput("FS_Trips_Y: " + String(FS_Trips_Y));
-
-  FS_Trips_Z = ReadInfoEEPROM(EP_FS_Trips_Z, 8).toInt();
-  MSGOutput("FS_Trips_Z: " + String(FS_Trips_Z));
-
+  
   #pragma endregion
 
-  // isLCD = true;
-  // LCD_Update_Mode = 0;
-  // PageLevel = 0;
-  // PageItemsCount = MENU_ITEMS;
-  // updateUI(0);
+  isLCD = true;
+  LCD_Update_Mode = 0;
+  PageLevel = 0;
+  PageItemsCount = MENU_ITEMS;
+  updateUI(0);
   
-  // timer_Get_IL_1 = millis();
+  timer_Get_IL_1 = millis();
 
-  // if(Get_PD_Points < 1)
-  //   Get_PD_Points = 1;
-  // else if(Get_PD_Points > 100)
-  //   Get_PD_Points = 100;
+  if(Get_PD_Points < 1)
+    Get_PD_Points = 1;
+  else if(Get_PD_Points > 100)
+    Get_PD_Points = 100;
 
-  // Cal_PD_Input_IL(Get_PD_Points);
+  Serial.println("Get_PD_Points:" + String(Get_PD_Points));
+  Cal_PD_Input_IL(Get_PD_Points);
 
-  // timer_Get_IL_2 = millis();
+  timer_Get_IL_2 = millis();
 
  
-  // Serial.println("Get_PD_Points:" + String(Get_PD_Points));
-  // Serial.println("Timespan of Get PD IL:" + String(timer_Get_IL_2 - timer_Get_IL_1));
+  Serial.println("Timespan of Get PD IL:" + String(timer_Get_IL_2 - timer_Get_IL_1));
 
+  // Init ESP-NOW
+  WiFi.mode(WIFI_STA);
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+  else
+    Serial.println("Initializing ESP-NOW");  
+
+  // 绑定數據接收端
+  esp_now_peer_info_t peerInfo;
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6); // Register peer
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+
+  // Add peer 增加一個PEER到名單列
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+    Serial.println("Failed to add peer");
+    return;
+  }
+
+  // 設定發送數據時CALLBACK的函式名稱。 通過ESP-NOW傳送數據後，將被呼叫通知是否傳送成功。
+  // Once ESPNow is successfully Init, we will register for Send CB to
+  // get the status of Trasnmitted packet
+  esp_now_register_send_cb(OnDataSent);
+
+  //設定收到數據時CALLBACK的函式名稱。 通過ESP-NOW接收到數據後，將被呼叫以便進一步處理資料。
+  // Register for a callback function that will be called when data is received
+  esp_now_register_recv_cb(OnDataRecv);
+
+  // ESP_Now_Initialize();
+  isWiFiConnected = true;
 
   //在core 0啟動 mision 1
   // xTaskCreatePinnedToCore(
@@ -2142,13 +2128,12 @@ const char *serverTestData = "http://192.168.4.1/?param1=10&param2=hi";
 
 void loop()
 {
-    // DataSent_Core("BS", "0");
-    DataSent_Core("BSS");
-   delay(1000);
+  // DataSent_Core("BSS");
+  // delay(1000);
 
   unsigned long currentMillis = millis();
 
-  if (currentMillis - previousMillis >= interval && false)
+  if (currentMillis - previousMillis >= interval && true)
   {    
     // Serial.println("Resetting WDT...");
     // esp_task_wdt_reset(); //喂狗操作，使看門狗定時器復位
@@ -2390,6 +2375,9 @@ bool Fine_Scan(int axis, bool Trip2Stop)
 
   bool K_OK = true;
 
+  CMDOutput("AA", true);
+  isWiFiConnected = false;
+
   if (axis < 4)
   {
     switch (axis)
@@ -2400,7 +2388,7 @@ bool Fine_Scan(int axis, bool Trip2Stop)
 
       MotorCC_X = digitalRead(X_DIR_Pin);
 
-      CMDOutput("AS");
+      CMDOutput("AS");      
       // K_OK = Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan,Trip_");
       // K_OK = Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Scan,Trip_");
       K_OK = Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, MotorCC_X, FS_DelaySteps_X, StopValue, FS_Avg_X, FS_Trips_X, "X Scan,Trip_");
@@ -2528,10 +2516,11 @@ void AutoAlign()
   double PD_Now = 0;
   time1 = millis();
   MSGOutput(" ");
-  CMDOutput("AA"); //Auto Align
+  CMDOutput("AA", true); //Auto Align
 
-  MSGOutput(" ");
-  CMDOutput("AS"); //Align Start
+  // MSGOutput(" ");
+  // CMDOutput("AS"); //Align Start
+
   MSGOutput("... Spiral ...");
 
   //Spiral - Rough - 1
@@ -2706,6 +2695,7 @@ void AutoAlign()
           DataOutput();
 
           PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+          DataSent_Server("PD Power:" + String(PD_Now));
 
           if (PD_Now > stopValue)
           {
@@ -3718,9 +3708,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
       }
     }
   }
-
-  
-  
+   
   MotorCC = !MotorCC; //Reverse direction
   digitalWrite(DIR_Pin, MotorCC);
 
@@ -3791,6 +3779,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
     DataOutput();
     DataOutput(XYZ, PD_Value[i]); //int xyz, double pdValue
+    DataSent_Server("PD Power:" + String(PD_Value[i]));
 
     if(IL_Best_Trip1 >= -2.5 && PD_Value[i] <= (IL_Best_Trip1 - 1.5) && Trips == 1)
     {
@@ -3933,6 +3922,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
       DataOutput();
       DataOutput(XYZ, PD_Value[i]); //int xyz, double pdValue
+      DataSent_Server("PD Power:" + String(PD_Value[i]));
 
       if(IL_Best_Trip1 >= -2.5 && PD_Value[i] <= (IL_Best_Trip1 - 1.5) && Trips == 1)
       {
@@ -4136,6 +4126,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
         PD_Now = Cal_PD_Input_IL(Get_PD_Points);
         DataOutput();
         DataOutput(XYZ, PD_Now); //int xyz, double pdValue
+        DataSent_Server("PD Power:" + String(PD_Now));
 
         break;
       }
@@ -4227,7 +4218,7 @@ void BackLash_Reverse(int XYZ, bool dir, int stableDelay)
 
 long Curfit(double x1[], double y1[], int dataCount)
 {
-  Serial.println("Curfit Test");
+  // Serial.println("Curfit Test");
   char buf[4];
   int xpower = 0;
   int order = 2;
@@ -4289,7 +4280,6 @@ long Curfit(double x1[], double y1[], int dataCount)
 double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int motorStep, int stableDelay,
                                         bool Direction, int delayBetweenStep, int Get_PD_Points, int StopPDValue, String msg)
 {
-
   int DIR_Pin = 0;
   int STP_Pin = 0;
   MotorCC = Direction; // direction first
@@ -4464,9 +4454,9 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
         PD_Best_Pos_Trip2 = Get_Position(XYZ);
       }
 
-      if (i >= 1 && PD_Value[i] < PD_Value[i - 1]) //Condition 3
+      if (i >= 3 && PD_Value[i] < PD_Value[i - 1] && PD_Value[i-1] < PD_Value[i - 2]  && PD_Value[i-2] < PD_Value[i - 3]) //Condition 3
       {
-        if (abs(PD_Value[i - 1] - PD_Best) < 0.8)
+        if (abs(PD_Value[i - 3] - PD_Best) < 0.8 || PD_Value[i - 3] > PD_Best)
         {
           Serial.println("Pass best IL");
           break;
@@ -5392,6 +5382,7 @@ int Function_Excecutation(String cmd, int cmd_No)
           updateUI(PageLevel);
 
           isWiFiConnected = initial_wifi_isConnected;
+          MSGOutput("Auto_Align_End");
         }
         cmd_No = 0;
         break;
@@ -5404,7 +5395,7 @@ int Function_Excecutation(String cmd, int cmd_No)
 
           bool K_OK = true;
           bool initial_wifi_isConnected = isWiFiConnected;
-          isWiFiConnected = false;
+          // isWiFiConnected = false;
 
           isLCD = true;
           PageLevel = 102;
@@ -5467,6 +5458,7 @@ int Function_Excecutation(String cmd, int cmd_No)
           AQ_Scan_Compensation_Steps_Z_A = ReadInfoEEPROM(160, 8).toInt();
 
           isWiFiConnected = initial_wifi_isConnected;
+          MSGOutput("Auto_Align_End");
         }
         cmd_No = 0;
         break;
@@ -6439,39 +6431,33 @@ void CMDOutput(String cmd)
   String msg = "CMD::" + cmd;
   Serial.println(msg);
 
+  if (isWiFiConnected)
+    DataSent_Server(msg);
+
   // if (isWiFiConnected)
   // {
   //   httpTestRequest(ServerIP.c_str(), msg.c_str());
   // }
+}
 
-  // Check WiFi connection status
-  // if (WiFi.status() == WL_CONNECTED)
-  // {
-  //   // Data = ServerIP + "?" + ID + "=" + msg;
-  //   // httpTestRequest(Data.c_str()); //Send message to server
-  //   httpTestRequest(ServerIP.c_str(), msg.c_str());
+void CMDOutput(String cmd, bool isSentServer)
+{
+  String msg = "CMD::" + cmd;
+  Serial.println(msg);
 
-  //   isWiFiConnected = true;
-  // }
-  // else
-  // {
-  //   if (isWiFiConnected)
-  //   {
-  //     Serial.println("WiFi Disconnected");
-  //     isWiFiConnected = false;
-  //   }
-  // }
+  if (isSentServer)
+    DataSent_Server(msg);
 }
 
 void MSGOutput(String msg)
 {
   Serial.println(msg);
-
-  // Check WiFi connection status
-  // if (isWiFiConnected)
-  // {
-  //   httpTestRequest(ServerIP.c_str(), msg.c_str());
-  // }  
+  
+  if (isWiFiConnected)
+  {
+    DataSent_Server(msg);
+    // httpTestRequest(ServerIP.c_str(), msg.c_str());
+  }  
 }
 
 void DataOutput()
@@ -6507,6 +6493,24 @@ void DataOutput(int xyz, double pdValue)
 
   case 2:
     CMDOutput(">:" + String(Z_Pos_Now) + "," + String(pdValue));
+    break;
+  }
+}
+
+void DataOutput(int xyz, double pdValue, bool isSentServer)
+{
+  switch (xyz)
+  {
+  case 0:
+    CMDOutput(">:" + String(X_Pos_Now) + "," + String(pdValue), isSentServer);
+    break;
+
+  case 1:
+    CMDOutput(">:" + String(Y_Pos_Now) + "," + String(pdValue), isSentServer);
+    break;
+
+  case 2:
+    CMDOutput(">:" + String(Z_Pos_Now) + "," + String(pdValue), isSentServer);
     break;
   }
 }
