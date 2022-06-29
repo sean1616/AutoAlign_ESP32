@@ -2633,7 +2633,7 @@ void AutoAlign()
   Threshold = 124;
   stableDelay = 10; //Default 25
   int scanPoints = 8;
-  int stopValue = -2.5; //Default : -2.9
+  int stopValue = -3; //Default : -2.9
   int delta_X, delta_Y, X_pos_before, Y_pos_before;
   double PDValue_After_Scan = -60;
 
@@ -3687,7 +3687,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
     for (size_t i = 0; i < 3; i++)
     {
-      if(PD_Now < PD_initial && (PD_initial - PD_Now) > 1)
+      if(PD_Now < PD_initial && (PD_initial - PD_Now) > 1 || PD_initial >= -2)
       {
         PD_Now = Cal_PD_Input_IL(Get_PD_Points);
         MSGOutput("Break Jump Loop: " + String(PD_Now));
