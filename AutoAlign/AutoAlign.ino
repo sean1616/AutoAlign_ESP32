@@ -3683,23 +3683,23 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
     Serial.println("Jump IL: " + String(PD_Now));
 
-    for (size_t i = 0; i < 3; i++)
-    {
-      if(PD_Now < PD_initial && (PD_initial - PD_Now) > 1 || PD_initial >= -2)
-      {
-        PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-        MSGOutput("Break Jump Loop: " + String(PD_Now));
-        break;
-      }
-      else
-      {
-        step(STP_Pin, motorStep * count, delayBetweenStep); 
-        PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-        DataOutput();
-        DataOutput(XYZ, PD_Now);
-        MSGOutput("Jump IL: " + String(PD_Now));
-      }
-    }
+    // for (size_t i = 0; i < 3; i++)
+    // {
+    //   if(PD_Now < PD_initial && (PD_initial - PD_Now) > 1 || PD_initial >= -2)
+    //   {
+    //     PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+    //     MSGOutput("Break Jump Loop: " + String(PD_Now));
+    //     break;
+    //   }
+    //   else
+    //   {
+    //     step(STP_Pin, motorStep * count, delayBetweenStep); 
+    //     PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+    //     DataOutput();
+    //     DataOutput(XYZ, PD_Now);
+    //     MSGOutput("Jump IL: " + String(PD_Now));
+    //   }
+    // }
   }
   else
   {
@@ -4499,12 +4499,12 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
 
   PD_Now = Cal_PD_Input_IL(Get_PD_Points);
 
-  if(true && PD_Now < PD_Best - 3)
+  if(true && PD_Now < PD_Best - 0.5)
   {
     trip++;
     CMDOutput("~:" + msg + String(trip)); //Trip_3------------------------------------------------------------
 
-    if(PD_Best <= 5)
+    if(PD_Best <= 3)
     {
       Move_Motor_abs(XYZ, Pos_Ini_Trip2); //Jump to Trip_2 start position
       delay(150);
