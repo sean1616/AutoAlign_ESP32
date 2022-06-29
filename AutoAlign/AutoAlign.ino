@@ -2669,8 +2669,6 @@ void AutoAlign()
           PD_Z_before = Cal_PD_Input_IL(Get_PD_Points);
           MSGOutput("PD_Z_before:" + String(PD_Z_before));
 
-          
-
           int motorStep = AA_ScanRough_Feed_Steps_Z_A; //default: 10000
           if (PD_Z_before < -30)
           {
@@ -4506,12 +4504,12 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
     trip++;
     CMDOutput("~:" + msg + String(trip)); //Trip_3------------------------------------------------------------
 
-    // if(PD_Best <= 15)
-    // {
-    //   Move_Motor_abs(XYZ, Pos_Ini_Trip2); //Jump to Trip_2 start position
-    //   delay(150);
-    //   DataOutput(XYZ, Cal_PD_Input_IL(Get_PD_Points)); //int xyz, double pdValue
-    // }
+    if(PD_Best <= 5)
+    {
+      Move_Motor_abs(XYZ, Pos_Ini_Trip2); //Jump to Trip_2 start position
+      delay(150);
+      DataOutput(XYZ, Cal_PD_Input_IL(Get_PD_Points)); //int xyz, double pdValue
+    }
 
     Move_Motor_abs(XYZ, PD_Best_Pos_Trip2); //Jump to Trip_2 start position
     delay(100);
