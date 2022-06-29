@@ -274,6 +274,7 @@ unsigned long Q_Time = 0;
 unsigned long LCD_Auto_Update_TimeCount = 0;
 byte GetPower_Mode = 1;
 bool is_Scan_V2_ReWork = false;
+bool is_AutoCuring = false;
 
 // BluetoothSerial BT; //宣告藍芽物件，名稱為BT
 
@@ -545,10 +546,10 @@ double ILConverter(double pdDac)
 //Calculate PD input value, Return Dac
 double Cal_PD_Input_Dac(int averageCount)
 {
-  digitalWrite(X_DIR_Pin, false);
-  digitalWrite(Y_DIR_Pin, false);
-  digitalWrite(Z_DIR_Pin, false);
-  delay(1);
+  // digitalWrite(X_DIR_Pin, false);
+  // digitalWrite(Y_DIR_Pin, false);
+  // digitalWrite(Z_DIR_Pin, false);
+  // delay(1);
 
   double averagePDInput = 0;
   double PDAvgInput = 0;
@@ -561,10 +562,10 @@ double Cal_PD_Input_Dac(int averageCount)
   //Function: (PD Value) - (reference) + 300
   averagePDInput = (PDAvgInput / averageCount);
 
-  digitalWrite(X_DIR_Pin, MotorCC_X);
-  digitalWrite(Y_DIR_Pin, MotorCC_Y);
-  digitalWrite(Z_DIR_Pin, MotorCC_Z);
-  delay(1);
+  // digitalWrite(X_DIR_Pin, MotorCC_X);
+  // digitalWrite(Y_DIR_Pin, MotorCC_Y);
+  // digitalWrite(Z_DIR_Pin, MotorCC_Z);
+  // delay(1);
 
   return (averagePDInput - ref_IL);
 }
@@ -572,10 +573,10 @@ double Cal_PD_Input_Dac(int averageCount)
 //Calculate PD input value, Return IL
 double Cal_PD_Input_IL(int averageCount)
 {
-  digitalWrite(X_DIR_Pin, false);
-  digitalWrite(Y_DIR_Pin, false);
-  digitalWrite(Z_DIR_Pin, false);
-  delay(1);
+  // digitalWrite(X_DIR_Pin, false);
+  // digitalWrite(Y_DIR_Pin, false);
+  // digitalWrite(Z_DIR_Pin, false);
+  // delay(1);
 
   double averagePDInput = 0;
   double PDAvgInput = 0;
@@ -588,10 +589,10 @@ double Cal_PD_Input_IL(int averageCount)
 
   averagePDInput = (PDAvgInput / averageCount);
 
-  digitalWrite(X_DIR_Pin, MotorCC_X);
-  digitalWrite(Y_DIR_Pin, MotorCC_Y);
-  digitalWrite(Z_DIR_Pin, MotorCC_Z);
-  delay(1);
+  // digitalWrite(X_DIR_Pin, MotorCC_X);
+  // digitalWrite(Y_DIR_Pin, MotorCC_Y);
+  // digitalWrite(Z_DIR_Pin, MotorCC_Z);
+  // delay(1);
 
   double IL = ILConverter(averagePDInput) - ref_IL;
 
@@ -601,10 +602,10 @@ double Cal_PD_Input_IL(int averageCount)
 //Calculate PD input value, Return Row Dac
 double Cal_PD_Input_Row_IL(int averageCount)
 {
-  digitalWrite(X_DIR_Pin, false);
-  digitalWrite(Y_DIR_Pin, false);
-  digitalWrite(Z_DIR_Pin, false);
-  delay(1);
+  // digitalWrite(X_DIR_Pin, false);
+  // digitalWrite(Y_DIR_Pin, false);
+  // digitalWrite(Z_DIR_Pin, false);
+  // delay(1);
 
   double averagePDInput = 0;
   double PDAvgInput = 0;
@@ -616,10 +617,10 @@ double Cal_PD_Input_Row_IL(int averageCount)
   //Function: (PD Value)
   averagePDInput = (PDAvgInput / averageCount);
 
-  digitalWrite(X_DIR_Pin, MotorCC_X);
-  digitalWrite(Y_DIR_Pin, MotorCC_Y);
-  digitalWrite(Z_DIR_Pin, MotorCC_Z);
-  delay(1);
+  // digitalWrite(X_DIR_Pin, MotorCC_X);
+  // digitalWrite(Y_DIR_Pin, MotorCC_Y);
+  // digitalWrite(Z_DIR_Pin, MotorCC_Z);
+  // delay(1);
 
   double IL = ILConverter(averagePDInput);
 
@@ -629,10 +630,10 @@ double Cal_PD_Input_Row_IL(int averageCount)
 //Calculate PD input value, Return Row Dac
 double Cal_PD_Input_Row_Dac(int averageCount)
 {
-  digitalWrite(X_DIR_Pin, false);
-  digitalWrite(Y_DIR_Pin, false);
-  digitalWrite(Z_DIR_Pin, false);
-  delay(1);
+  // digitalWrite(X_DIR_Pin, false);
+  // digitalWrite(Y_DIR_Pin, false);
+  // digitalWrite(Z_DIR_Pin, false);
+  // delay(1);
 
   double averagePDInput = 0;
   double PDAvgInput = 0;
@@ -643,10 +644,10 @@ double Cal_PD_Input_Row_Dac(int averageCount)
   }
   averagePDInput = (PDAvgInput / averageCount);
 
-  digitalWrite(X_DIR_Pin, MotorCC_X);
-  digitalWrite(Y_DIR_Pin, MotorCC_Y);
-  digitalWrite(Z_DIR_Pin, MotorCC_Z);
-  delay(1);
+  // digitalWrite(X_DIR_Pin, MotorCC_X);
+  // digitalWrite(Y_DIR_Pin, MotorCC_Y);
+  // digitalWrite(Z_DIR_Pin, MotorCC_Z);
+  // delay(1);
 
   return averagePDInput;
 }
@@ -1718,13 +1719,14 @@ void EmergencyStop()
 
 #pragma region ESP_Now
 
-uint8_t broadcastAddress[] = {0x8C, 0x4B, 0x14, 0x16, 0x35, 0x88};   //Server Mac address
+// uint8_t broadcastAddress[] = {0x8C, 0x4B, 0x14, 0x16, 0x35, 0x88};   //Server Mac address
+uint8_t broadcastAddress[] = {0x8C, 0x4B, 0x14, 0x16, 0x37, 0xF8};   //Server Mac address
 
 String SSD, Msg;
 
 typedef struct struct_send_message {
     String client_name = ID;
-    char msg[30];
+    char msg[50];
     // char value[20];
 } struct_send_message;
 
@@ -2375,8 +2377,10 @@ bool Fine_Scan(int axis, bool Trip2Stop)
 
   bool K_OK = true;
 
-  CMDOutput("AA", true);
-  isWiFiConnected = false;
+  // CMDOutput("AA", true);
+
+  if(!is_AutoCuring)
+    isWiFiConnected = false;
 
   if (axis < 4)
   {
@@ -2496,6 +2500,8 @@ bool Fine_Scan(int axis, bool Trip2Stop)
   isLCD = true;
   LCD_Update_Mode = 0;
   LCD_PageNow = 100;
+
+  isWiFiConnected = true;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -2627,7 +2633,7 @@ void AutoAlign()
   Threshold = 124;
   stableDelay = 10; //Default 25
   int scanPoints = 8;
-  int stopValue = -3; //Default : -2.9
+  int stopValue = -2.5; //Default : -2.9
   int delta_X, delta_Y, X_pos_before, Y_pos_before;
   double PDValue_After_Scan = -60;
 
@@ -2662,6 +2668,8 @@ void AutoAlign()
 
           PD_Z_before = Cal_PD_Input_IL(Get_PD_Points);
           MSGOutput("PD_Z_before:" + String(PD_Z_before));
+
+          
 
           int motorStep = AA_ScanRough_Feed_Steps_Z_A; //default: 10000
           if (PD_Z_before < -30)
@@ -2700,6 +2708,7 @@ void AutoAlign()
           if (PD_Now > stopValue)
           {
             MSGOutput("Over_Stop_Value");
+            break;
           }
 
           if (PD_Now <= PD_Z_before || (PD_Z_before - PD_Now) > 30 || abs(PD_Z_before - PD_Now) <= 1.5)
@@ -3668,28 +3677,30 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
   if(true)
   {
-    step(STP_Pin, motorStep * count, delayBetweenStep); 
-
+    step(STP_Pin, motorStep * count, delayBetweenStep);   //First Jump
     delay(100);
-
     PD_Now = Cal_PD_Input_IL(Get_PD_Points);
     DataOutput();
     DataOutput(XYZ, PD_Now); //int xyz, double pdValue
 
     Serial.println("Jump IL: " + String(PD_Now));
 
-    for (size_t i = 0; i < 2; i++)
+    for (size_t i = 0; i < 3; i++)
     {
-      if(PD_Now > PD_initial && (PD_Now - PD_initial) >= 1)
+      if(PD_Now < PD_initial && (PD_initial - PD_Now) > 1)
+      {
+        PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+        MSGOutput("Break Jump Loop: " + String(PD_Now));
+        break;
+      }
+      else
       {
         step(STP_Pin, motorStep * count, delayBetweenStep); 
         PD_Now = Cal_PD_Input_IL(Get_PD_Points);
         DataOutput();
-        DataOutput(XYZ, PD_Now); //int xyz, double pdValue
-        Serial.println("Jump IL: " + String(PD_Now));
+        DataOutput(XYZ, PD_Now);
+        MSGOutput("Jump IL: " + String(PD_Now));
       }
-      else
-        break;
     }
   }
   else
@@ -4393,8 +4404,9 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
     isReverse = true;
   }
 
+  //-------------------------------------------------Trip_2------------------------------------------------------------
   trip++;
-  CMDOutput("~:" + msg + String(trip)); //Trip_2------------------------------------------------------------
+  CMDOutput("~:" + msg + String(trip)); 
 
   PD_Value[0] = Cal_PD_Input_IL(Get_PD_Points);
 
@@ -4436,11 +4448,11 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
         return PD_Best;
       }
 
-      if (!isReverse && i == 0 && PD_Value[0] < PD_Best) //Condition 2
-      {
-        Serial.println("Forward_pass_best");
-        return PD_Best;
-      }
+      // if (!isReverse && i == 0 && PD_Value[0] < PD_Best) //Condition 2
+      // {
+      //   Serial.println("Forward_pass_best");
+      //   return PD_Best;
+      // }
 
       if (PD_Value[i] > PD_Best)
       {
@@ -4454,7 +4466,7 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
         PD_Best_Pos_Trip2 = Get_Position(XYZ);
       }
 
-      if (i >= 3 && PD_Value[i] < PD_Value[i - 1] && PD_Value[i-1] < PD_Value[i - 2]  && PD_Value[i-2] < PD_Value[i - 3]) //Condition 3
+      if (i >= 3 && PD_Value[i] < PD_Value[i - 1] && PD_Value[i-1] <= PD_Value[i - 2]  && PD_Value[i-2] <= PD_Value[i - 3]) //Condition 3
       {
         if (abs(PD_Value[i - 3] - PD_Best) < 0.8 || PD_Value[i - 3] > PD_Best)
         {
@@ -4463,27 +4475,15 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
         }
       }
 
-      if (PD_Value[i] < -53) //Condition 4
+      if (PD_Value[i] < -45) //Condition 4
       {
         Serial.println("Miss Target");
         break;
       }
 
-      if (i == count - 1 && PD_Value[i] != PD_Best) //Back to best position after all steps run out
+      if (i == count - 1 && PD_Value[i] != PD_Best ) //Back to best position after all steps run out
       {
-        trip++;
-        CMDOutput("~:" + msg + String(trip)); //Trip_3------------------------------------------------------------
-
-        Move_Motor_abs(XYZ, Pos_Ini_Trip2); //Jump to Trip_2 start position
-        delay(300);
-
-        DataOutput(XYZ, Cal_PD_Input_IL(Get_PD_Points)); //int xyz, double pdValue
-
-        Move_Motor_abs(XYZ, PD_Best_Pos_Trip2); //Jump to Trip_2 start position
-        delay(300);
-
-        DataOutput(XYZ, Cal_PD_Input_IL(Get_PD_Points)); //int xyz, double pdValue
-        MSGOutput("Back to best position");
+        
       }
       else if (i == count - 1 && PD_Value[i] == PD_Best) //未通過最高點
       {
@@ -4495,6 +4495,29 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
         }
       }
     }
+  }
+
+  // ----------------------------------------------Trip 3 ------------------------------------------------------------
+
+  PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+
+  if(true && PD_Now < PD_Best - 3)
+  {
+    trip++;
+    CMDOutput("~:" + msg + String(trip)); //Trip_3------------------------------------------------------------
+
+    // if(PD_Best <= 15)
+    // {
+    //   Move_Motor_abs(XYZ, Pos_Ini_Trip2); //Jump to Trip_2 start position
+    //   delay(150);
+    //   DataOutput(XYZ, Cal_PD_Input_IL(Get_PD_Points)); //int xyz, double pdValue
+    // }
+
+    Move_Motor_abs(XYZ, PD_Best_Pos_Trip2); //Jump to Trip_2 start position
+    delay(100);
+
+    DataOutput(XYZ, Cal_PD_Input_IL(Get_PD_Points)); //int xyz, double pdValue
+    MSGOutput("Back to best position");
   }
 
   delay(stableDelay);
@@ -4511,47 +4534,6 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
   }
 
   return PD_Best;
-
-  //Back to best position
-  // BackLash_Reverse(XYZ, MotorCC, stableDelay);
-  // Serial.println("Final Reverse");
-
-  // trip++;
-  // CMDOutput("~:" + msg + String(trip));
-
-  // double pv = 0;
-  // double bv = 0;
-  // for (int k = 0; k < 35; k++)
-  // {
-  //   if (isStop)
-  //     return true;
-
-  //   step(STP_Pin, motorStep / 4, delayBetweenStep);
-  //   delay(stableDelay);
-
-  //   pv = Cal_PD_Input_IL(Get_PD_Points);
-  //   DataOutput(XYZ, pv); //int xyz, double pdValue
-
-  //   Serial.println("Reverse PD: " + String(pv));
-
-  //   if (pv >= StopPDValue)
-  //   {
-  //     Serial.println("Over StopPDValue");
-
-  //     timer_2 = millis();
-  //     ts = (timer_2 - timer_1) * 0.001;
-  //     CMDOutput("t:" + String(ts, 2));
-
-  //     PD_Best = pv;
-
-  //     return PD_Best;
-  //   }
-
-  //   if (abs(pv - PD_Best) < 3 || pv > PD_Best || (pv < bv && pv > Threshold))
-  //     break;
-  //   else
-  //     bv = pv;
-  // }
 
   timer_2 = millis();
   ts = (timer_2 - timer_1) * 0.001;
@@ -5471,11 +5453,13 @@ int Function_Excecutation(String cmd, int cmd_No)
 
           isILStable = false;
           bool isStopAlign = false;
+          is_AutoCuring = true;
 
           ButtonSelected = -1;
 
           double IL_stable_count = 0;
           double Acceptable_Delta_IL = 10; //12
+          unsigned long lastUpdateQT = 0;
           Q_Time = 0;
 
           time_curing_0 = millis();
@@ -5497,28 +5481,33 @@ int Function_Excecutation(String cmd, int cmd_No)
           CMDOutput("AQ");                             // Auto_Curing Start
           CMDOutput("QT" + String(AQ_Total_TimeSpan)); // Auto_Curing Start
           MSGOutput("StopValue : " + String(StopValue));
-          // MSGOutput("AQ_Scan_Steps_Z_A : " + String(AQ_Scan_Steps_Z_A));
-          // MSGOutput("AQ_Scan_Steps_Z_B : " + String(AQ_Scan_Steps_Z_B));
-          // MSGOutput("AQ_Scan_Steps_Z_C : " + String(AQ_Scan_Steps_Z_C));
-          // MSGOutput("AQ_Scan_Steps_Z_D : " + String(AQ_Scan_Steps_Z_D));
 
           while (true)
           {
+            if(digitalRead(Tablet_PD_mode_Trigger_Pin))
+            {
+              digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
+              delay(2);
+            }
+
             PD_Now = Cal_PD_Input_IL(Get_PD_Points);
             Q_Time = ((millis() - time_curing_0) / 1000);
-            MSGOutput("Curing Time:" + String(Q_Time) + " s");
-            // MSGOutput("Threshold: " + String(AutoCuring_Best_IL - Acceptable_Delta_IL) + ", Now: " + String(PD_Now));
-            MSGOutput("PD_Power:" + String(PD_Now)); //dB
-
-            digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
-            delay(5);
+            // MSGOutput("Curing Time:" + String(Q_Time) + " s");
+            // MSGOutput("PD_Power:" + String(PD_Now)); //dB
+            
+            if(isStopAlign)
+            { 
+              if(Q_Time - lastUpdateQT >= 3) //Reduce get data rate after stop auto-aligning
+              {
+                lastUpdateQT = Q_Time;
+                MSGOutput("QT_IL:" + String(Q_Time)+ " s, " + String(PD_Now));
+              } 
+            }
+            else
+              MSGOutput("QT_IL:" + String(Q_Time)+ " s, " + String(PD_Now));
 
             if (Serial.available())
               cmd = Serial.readString();
-
-            // MSGOutput("ButtonSelected: " + String(ButtonSelected));
-
-            // MSGOutput("cmd in Q loop: " + String(cmd));
 
             cmd_No = Function_Classification(cmd, ButtonSelected);
             if(cmd_No == 30) 
@@ -5529,8 +5518,9 @@ int Function_Excecutation(String cmd, int cmd_No)
             isLCD = true;
             PageLevel = 103;
             updateUI(103);
-            delay(1000); //default: 700
 
+            delay(998); //get data time rate
+          
             if (isStop)
               break;
 
@@ -5655,9 +5645,7 @@ int Function_Excecutation(String cmd, int cmd_No)
                       Fine_Scan(1, false); //Q Scan X
 
                     if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820 && !isStopAlign){
-                      MSGOutput("Update : Delta IL less than 0.25 , break curing loop");
-                      // MSGOutput("X maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
-                      // + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
+                      MSGOutput("Update : Delta IL < 0.25, break"); //break curing loop
                       isStopAlign = true;
                       // break;
                     }
@@ -5686,9 +5674,7 @@ int Function_Excecutation(String cmd, int cmd_No)
                       Fine_Scan(2, false); //------------------------------------------------------Q Scan Y
 
                     if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820 && !isStopAlign){
-                      MSGOutput("Update : Delta IL less than 0.25 , break curing loop");
-                      // MSGOutput("Y maxIL_in_FineScan:" + String(maxIL_in_FineScan) 
-                      // + ", minIL_in_FineScan:" + String(minIL_in_FineScan));
+                      MSGOutput("Update : Delta IL < 0.25, break"); //break curing loop
                       isStopAlign = true;
                       // break;
                     }
@@ -5767,6 +5753,8 @@ int Function_Excecutation(String cmd, int cmd_No)
           String eepromString = ReadInfoEEPROM(40, 8);                         //Reading z backlash from EEPROM
           MSGOutput("Reset Z backlash from EEPROM: " + ReadInfoEEPROM(40, 8)); //(start_position, data_length)
           Z_backlash = eepromString.toInt();
+
+          is_AutoCuring = false;
 
           isLCD = true;
           PageLevel = 0;
