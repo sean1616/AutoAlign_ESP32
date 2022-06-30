@@ -15,6 +15,8 @@
 // #include <ESPAsyncWebServer.h>
 
 TaskHandle_t Task_1;
+TaskHandle_t Task_2;
+QueueHandle_t queue;
 #define WDT_TIMEOUT 3
 
 // Set your access point network credentials
@@ -281,35 +283,6 @@ bool is_AutoCuring = false;
 bool isWatchDog_Flag = false;
 bool isLCD = true;
 bool isLCD_Auto_Update = false;
-
-void Task_1_sendData(void *pvParameters)
-{
-  while (true)
-  {
-    if (!digitalRead(LCD_Select_pin))
-    {
-      LCD_Encoder_Selected();
-    }
-
-    int idx = LCD_en_count / 2;
-    // Serial.println(String(idx));
-    updateUI(idx);
-
-    if (isLCD_Auto_Update)
-      if (millis() - LCD_Auto_Update_TimeCount > 5000)
-      {
-        LCD_Auto_Update_TimeCount = millis();
-        isLCD = true;
-      }
-
-    delay(150);
-    // lcd.clearDisplay();
-    // delay(150);
-
-    //Task1休息，delay(1)不可省略
-    delay(1);
-  }
-}
 
 void step(byte stepperPin, long steps, int delayTime)
 {
@@ -1752,8 +1725,18 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   status == ESP_NOW_SEND_SUCCESS ? SSD ="Delivery Success" : SSD ="Delivery Fail";
   if(status == 0)
   {
+    if(!isWiFiConnected)
+      Serial.println("Server Connected !");
+    isWiFiConnected = true;
     // Serial.println("OK");
   }
+  else
+  {
+    if(isWiFiConnected)
+      Serial.println("Server Disconnected !");
+    isWiFiConnected = false;
+  }
+
 }
 
 // Callback when data is received
@@ -1803,11 +1786,7 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   }
 }
 
-void DataSent_Server(String MSG)
-{
-  MSG.toCharArray(sendmsg.msg, 30);
-  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &sendmsg, sizeof(sendmsg));
-}
+
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -1848,6 +1827,90 @@ void ESP_Now_Initialize()
 
 #pragma endregion
 
+
+
+void Task_1_sendData(void *pvParameters)
+{
+  while (true)
+  {
+    if (!digitalRead(LCD_Select_pin))
+    {
+      LCD_Encoder_Selected();
+    }
+
+    int idx = LCD_en_count / 2;
+    // Serial.println(String(idx));
+    updateUI(idx);
+
+    if (isLCD_Auto_Update)
+      if (millis() - LCD_Auto_Update_TimeCount > 5000)
+      {
+        LCD_Auto_Update_TimeCount = millis();
+        isLCD = true;
+      }
+
+    delay(150);
+    // lcd.clearDisplay();
+    // delay(150);
+
+    //Task1休息，delay(1)不可省略
+    delay(1);
+  }
+}
+
+void Task_2_sendData(void *pvParameters)
+{
+    BaseType_t xStatus;
+    const TickType_t xTickToWait= pdMS_TO_TICKS(100);
+    String MSG="";
+    int b;
+    char CH[50];
+
+   for (;;)
+   {
+    
+
+    xStatus = xQueueReceive(queue, &CH, xTickToWait);
+
+    if(xStatus == pdPASS)
+    {
+      Serial.println("SendDataToServer:" + String(CH));
+      // MSG.toCharArray(sendmsg.msg, 30);
+      // esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &sendmsg, sizeof(sendmsg));
+    }
+    else
+      Serial.println("Get msg failed");
+
+   }
+
+  vTaskDelete(NULL);
+  delay(1);
+}
+int ccc = 0;
+void DataSent_Server(String MSG)
+{
+  // int a = 100;
+  // char ch[50];
+  // MSG.toCharArray(ch, 50);
+  // ccc++;
+  // const TickType_t xTickToWait= pdMS_TO_TICKS(100);
+  // xQueueSend(queue, &ch, xTickToWait);
+  
+  // xQueueSend(queue, &MSG, portMAX_DELAY);
+
+  //在core 0啟動 mision 1
+  // xTaskCreatePinnedToCore(
+  //     Task_2_sendData, /* 任務實際對應的Function */
+  //     "Task_2",        /* 任務名稱 */
+  //     10000,           /* 堆疊空間 */
+  //     NULL,            /* 無輸入值 */
+  //     0,               /* 優先序0 */
+  //     &Task_2,         /* 對應的任務變數位址 */
+  //     0);              /*指定在核心0執行 */
+
+  MSG.toCharArray(sendmsg.msg, 30);
+  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &sendmsg, sizeof(sendmsg));
+}
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 void setup()
@@ -2109,6 +2172,8 @@ void setup()
   // ESP_Now_Initialize();
   isWiFiConnected = true;
 
+  // queue = xQueueCreate(1, sizeof(char[50]));
+
   //在core 0啟動 mision 1
   // xTaskCreatePinnedToCore(
   //     Task_1_sendData, /* 任務實際對應的Function */
@@ -2117,6 +2182,16 @@ void setup()
   //     NULL,            /* 無輸入值 */
   //     0,               /* 優先序0 */
   //     &Task_1,         /* 對應的任務變數位址 */
+  //     0);              /*指定在核心0執行 */
+
+  //在core 0啟動 mision 2
+  // xTaskCreatePinnedToCore(
+  //     Task_2_sendData, /* 任務實際對應的Function */
+  //     "Task_2",        /* 任務名稱 */
+  //     10000,           /* 堆疊空間 */
+  //     NULL,            /* 無輸入值 */
+  //     0,               /* 優先序0 */
+  //     &Task_2,         /* 對應的任務變數位址 */
   //     0);              /*指定在核心0執行 */
 }
 
@@ -2189,7 +2264,9 @@ void loop()
           break;
         }
 
-        MSGOutput("PD_Power:" + String(value)); //dB
+        // MSGOutput("PD_Power:" + String(value)); //dB
+        Serial.println("PD_Power:" + String(value));
+        DataSent_Server("PD_Power:" + String(value));  //Send to Server and check is connected or not !!
       }
     }
 
@@ -2372,15 +2449,12 @@ bool Fine_Scan(int axis, bool Trip2Stop)
 
   double pdBest = Cal_PD_Input_IL(Get_PD_Points);
 
-  // Region = Region + "_Fine_Scan";
   String msg;
 
   bool K_OK = true;
+  bool initial_wifi_status = isWiFiConnected;
 
-  // CMDOutput("AA", true);
-
-  if(!is_AutoCuring)
-    isWiFiConnected = false;
+  
 
   if (axis < 4)
   {
@@ -2393,8 +2467,6 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       MotorCC_X = digitalRead(X_DIR_Pin);
 
       CMDOutput("AS");      
-      // K_OK = Scan_AllRange_TwoWay(0, 8, 22, 0, 0, 120, StopValue, 500, 2, "X Scan,Trip_");
-      // K_OK = Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Scan,Trip_");
       K_OK = Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, MotorCC_X, FS_DelaySteps_X, StopValue, FS_Avg_X, FS_Trips_X, "X Scan,Trip_");
       CMDOutput("%:");
 
@@ -2403,7 +2475,6 @@ bool Fine_Scan(int axis, bool Trip2Stop)
         MotorCC_X = digitalRead(X_DIR_Pin);
 
         CMDOutput("AS");
-        // Scan_AllRange_TwoWay(0, 7, 25, stableDelay, 0, 50, StopValue, 600, 2, "X Re-Scan,Trip_");
         Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, MotorCC_X, FS_DelaySteps_X, StopValue, FS_Avg_X, FS_Trips_X, "X Re-Scan,Trip_");
         CMDOutput("%:");
       }
@@ -2501,7 +2572,7 @@ bool Fine_Scan(int axis, bool Trip2Stop)
   LCD_Update_Mode = 0;
   LCD_PageNow = 100;
 
-  isWiFiConnected = true;
+  isWiFiConnected = initial_wifi_status;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -2522,7 +2593,8 @@ void AutoAlign()
   double PD_Now = 0;
   time1 = millis();
   MSGOutput(" ");
-  CMDOutput("AA", true); //Auto Align
+  // CMDOutput("AA", true); //Auto Align
+  CMDOutput("AA"); //Auto Align
 
   // MSGOutput(" ");
   // CMDOutput("AS"); //Align Start
@@ -3654,6 +3726,10 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     break;
   }
 
+  bool iniWifiStatus = isWiFiConnected;
+  if(!is_AutoCuring)
+    isWiFiConnected = false;
+
   MSGOutput("Scan Step: " + String(motorStep));
   MSGOutput("Backlash: " + String(backlash));
   CMDOutput(">>" + msg + String(trip));
@@ -4155,6 +4231,8 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   double ts = (timer_2 - timer_1) * 0.001;
   CMDOutput("t:" + String(ts, 2));
 
+  isWiFiConnected = iniWifiStatus;
+
   if (PD_Now < PD_Best - 0.5)
     return false;
   else
@@ -4331,7 +4409,7 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
   int PD_Best_Pos = 0;
   int PD_Best_Pos_Trip2 = 0;
 
-  double PD_initial = Cal_PD_Input_IL(Get_PD_Points);
+  double PD_initial = Cal_PD_Input_IL(Get_PD_Points * 5);
   DataOutput(XYZ, PD_initial); //int xyz, double pdValue
 
   if (PD_initial >= StopPDValue)
@@ -4349,7 +4427,7 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
 
   delay(stableDelay);
 
-  PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+  PD_Now = Cal_PD_Input_IL(Get_PD_Points * 5);
   DataOutput(XYZ, PD_Now); //int xyz, double pdValue
 
   Serial.println("Initial: " + String(PD_initial) + ", After:" + String(PD_Now));
@@ -5339,7 +5417,7 @@ int Function_Excecutation(String cmd, int cmd_No)
         if (true)
         {
           bool initial_wifi_isConnected = isWiFiConnected;
-          isWiFiConnected = false;
+          // isWiFiConnected = false;
 
           AQ_Scan_Compensation_Steps_Z_A = 0;
 
@@ -5386,44 +5464,21 @@ int Function_Excecutation(String cmd, int cmd_No)
 
           //------------------------------------------------------------------------------------------------------------------------------Q Scan Z
 
-          // CMDOutput("AS");
-
-          // Scan_AllRange_TwoWay(2, 6, 100, AA_ScanFinal_Scan_Delay_X_A, 0, 80, StopValue, 600, 2, "Z Scan, Trip_"); //--Z--
           Fine_Scan(3, false); 
-
-          // CMDOutput("%:");
 
           if (isStop)
             true;
 
           //------------------------------------------------------------------------------------------------------------------------------Q Scan Y
 
-          // CMDOutput("AS");
-          // // K_OK = Scan_AllRange_TwoWay(1, 7, 20, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip_"); //Fast
-          // K_OK = Scan_AllRange_TwoWay(1, 6, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 100, StopValue, 600, 2, "Y Scan, Trip_"); //Slow
-          // CMDOutput("%:");
-
-          // if (!K_OK)
-          // {
-          //   CMDOutput("AS");
-          //   // K_OK = Scan_AllRange_TwoWay(1, 7, 20, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "Y Scan, Trip_");//Fast
-          //   K_OK = Scan_AllRange_TwoWay(1, 6, 35, AA_ScanFinal_Scan_Delay_Y_A, 0, 100, StopValue, 600, 2, "Y Scan, Trip_"); //Slow
-          //   CMDOutput("%:");
-          // }
-
            Fine_Scan(2, false); 
-          // CMDOutput("%:");
 
           if (isStop)
             true;
 
           //------------------------------------------------------------------------------------------------------------------------------Q Scan X
 
-          // CMDOutput("AS");
-
-          // Scan_AllRange_TwoWay(0, 8, 22, AA_ScanFinal_Scan_Delay_X_A, 0, 120, StopValue, 500, 2, "X Scan, Trip_"); //steps:350
           Fine_Scan(1, false); 
-          // CMDOutput("%:");
 
           if (isStop)
             true;
@@ -6416,7 +6471,7 @@ void CMDOutput(String cmd)
 {
   String msg = "CMD::" + cmd;
   Serial.println(msg);
-
+  // Serial.println("isWiFiConnected:" + String(isWiFiConnected)); 
   if (isWiFiConnected)
     DataSent_Server(msg);
 
@@ -6438,7 +6493,7 @@ void CMDOutput(String cmd, bool isSentServer)
 void MSGOutput(String msg)
 {
   Serial.println(msg);
-  
+  // Serial.println("isWiFiConnected:" + String(isWiFiConnected));
   if (isWiFiConnected)
   {
     DataSent_Server(msg);
@@ -6483,23 +6538,23 @@ void DataOutput(int xyz, double pdValue)
   }
 }
 
-void DataOutput(int xyz, double pdValue, bool isSentServer)
-{
-  switch (xyz)
-  {
-  case 0:
-    CMDOutput(">:" + String(X_Pos_Now) + "," + String(pdValue), isSentServer);
-    break;
+// void DataOutput(int xyz, double pdValue, bool isSentServer)
+// {
+//   switch (xyz)
+//   {
+//   case 0:
+//     CMDOutput(">:" + String(X_Pos_Now) + "," + String(pdValue), isSentServer);
+//     break;
 
-  case 1:
-    CMDOutput(">:" + String(Y_Pos_Now) + "," + String(pdValue), isSentServer);
-    break;
+//   case 1:
+//     CMDOutput(">:" + String(Y_Pos_Now) + "," + String(pdValue), isSentServer);
+//     break;
 
-  case 2:
-    CMDOutput(">:" + String(Z_Pos_Now) + "," + String(pdValue), isSentServer);
-    break;
-  }
-}
+//   case 2:
+//     CMDOutput(">:" + String(Z_Pos_Now) + "," + String(pdValue), isSentServer);
+//     break;
+//   }
+// }
 
 long Get_Position(int xyz)
 {
