@@ -138,10 +138,10 @@ int AA_SpiralFine_Scan_Steps_Y_D = 80;
 int AA_SpiralFine_Scan_Steps_Y_E = 140;
 int AA_ScanRough_Feed_Steps_Z_A = 10000;
 int AA_ScanRough_Feed_Steps_Z_B = 1000;
-double AA_ScanRough_Feed_Ratio_Z_A = 3.2;
-double AA_ScanRough_Feed_Ratio_Z_B = 2.5;
-double AA_ScanRough_Feed_Ratio_Z_C = 1.6;
-double AA_ScanRough_Feed_Ratio_Z_D = 1.1;
+double AA_ScanRough_Feed_Ratio_Z_A = 4.2;  //3.2
+double AA_ScanRough_Feed_Ratio_Z_B = 3.5;  //2.5
+double AA_ScanRough_Feed_Ratio_Z_C = 2.6;  //1.6
+double AA_ScanRough_Feed_Ratio_Z_D = 1.5;  //1.1
 int AA_ScanRough_Scan_Steps_Y_A = 25;
 int AA_ScanRough_Scan_Steps_Y_B = 40;  //30
 int AA_ScanRough_Scan_Steps_Y_C = 50;  //40
@@ -469,13 +469,13 @@ int KeyValueConverter()
       keyNo = 106; /* Y- */
       break;
     case 11:
-      keyNo = 7;
+      keyNo = 7; /* Auto - Align */
       break;
     case 12:
-      keyNo = 8;
+      keyNo = 8; /* Fine Scan */
       break;
     case 13:
-      keyNo = 9;
+      keyNo = 9; /* Auto - Q */
       break;
     default:
       keyNo = -1;
@@ -2266,7 +2266,6 @@ void loop()
           break;
         }
 
-        // MSGOutput("PD_Power:" + String(value)); //dB
         Serial.println("PD_Power:" + String(value));
         DataSent_Server("PD_Power:" + String(value));  //Send to Server and check is connected or not !!
       }
@@ -2275,8 +2274,6 @@ void loop()
     //LCD UI Update
     if (true)
     {
-      // LCD_Encoder_Rise();
-
       if (!digitalRead(LCD_Select_pin))
       {
         LCD_Encoder_Selected();
@@ -2321,14 +2318,6 @@ void loop()
           idx = MENU_ITEMS - 1;
         }
 
-        // if (idx < 0)
-        //   LCD_en_count = MENU_ITEMS * 2 - 2;
-        // else if (idx == MENU_ITEMS - 1)
-        //   LCD_en_count = MENU_ITEMS * 2 - 2;
-        // else if (idx > MENU_ITEMS - 1)
-        //   LCD_en_count = 0;
-
-        // Serial.println("idx:" + String(idx) + ",pre_LCD_Page_index:" + String(pre_LCD_Page_index) + ", LCD_en_count:" + String(LCD_en_count));
         updateUI(idx);
         isLCD = false;
       }
@@ -2905,21 +2894,15 @@ void AutoAlign()
 
         CMDOutput("AS");
         MSGOutput("Gap:" + MinMotroStep);
-        PD_After = AutoAlign_Scan_DirectionJudge_V2(1, 20, Threshold, MinMotroStep, stableDelay, MotorCC_Y, delayBetweenStep, Get_PD_Points, Target_IL, msg);
+        PD_After = AutoAlign_Scan_DirectionJudge_V2(1, 20, Threshold, MinMotroStep, stableDelay +30, MotorCC_Y, delayBetweenStep, Get_PD_Points + 2, Target_IL, msg);
         if(PD_After==0) break;;
         CMDOutput("%:");
 
-        // isTrip3Jump = true;
-
-        //  CMDOutput("AS");     
-        //  MSGOutput("Gap:" + MinMotroStep); 
-        //  Scan_AllRange_TwoWay(1, 8, MinMotroStep, FS_Stable_Y, MotorCC_Y, FS_DelaySteps_Y, Target_IL, FS_Avg_Y, FS_Trips_Y, msg);
-        // CMDOutput("%:");
-
-        //   isTrip3Jump = false;
-
-        //   PD_After = Cal_PD_Input_IL(Get_PD_Points);
-
+        if(PD_Before > -4)
+        {
+          MSGOutput("PreIL > -3, break Z loop");
+          break;
+        }
 
         msg = Region + ",X_Scan" + ",Trip_";
         if (PD_After > -9)
@@ -2938,22 +2921,11 @@ void AutoAlign()
         PD_After = AutoAlign_Scan_DirectionJudge_V2(0, 20, Threshold, MinMotroStep, stableDelay, MotorCC_X, delayBetweenStep, Get_PD_Points, Target_IL, msg);
         if(PD_After==0) break;;
         CMDOutput("%:");
-
-        // isTrip3Jump = true;
-
-        // CMDOutput("AS");     
-        //  MSGOutput("Gap:" + MinMotroStep); 
-        //  Scan_AllRange_TwoWay(0, 8, MinMotroStep, FS_Stable_X, MotorCC_X, FS_DelaySteps_X, Target_IL, FS_Avg_X, FS_Trips_X, msg);
-        //   CMDOutput("%:");
-
-        //   isTrip3Jump = false;
-
-        //   PD_After = Cal_PD_Input_IL(Get_PD_Points);
       }
 
-      if(PD_Before > -3)
+      if(PD_Before > -4)
       {
-        MSGOutput("PreIL > -3, break loop");
+        MSGOutput("PreIL > -3, break Z loop");
         break;
       }
 
@@ -3754,24 +3726,6 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     DataOutput(XYZ, PD_Now); //int xyz, double pdValue
 
     Serial.println("Jump IL: " + String(PD_Now));
-
-    // for (size_t i = 0; i < 3; i++)
-    // {
-    //   if(PD_Now < PD_initial && (PD_initial - PD_Now) > 1 || PD_initial >= -2)
-    //   {
-    //     PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-    //     MSGOutput("Break Jump Loop: " + String(PD_Now));
-    //     break;
-    //   }
-    //   else
-    //   {
-    //     step(STP_Pin, motorStep * count, delayBetweenStep); 
-    //     PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-    //     DataOutput();
-    //     DataOutput(XYZ, PD_Now);
-    //     MSGOutput("Jump IL: " + String(PD_Now));
-    //   }
-    // }
   }
   else
   {
@@ -3794,13 +3748,6 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   digitalWrite(DIR_Pin, MotorCC);
 
   delay(stableDelay + 105); 
-
-  // CMDOutput(">>" + msg + String(trip));
-  // Serial.println(">>" + msg + String(trip)); //Trip_1
-
-  // PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-  // DataOutput();
-  // DataOutput(XYZ, PD_Now); //int xyz, double pdValue
 
   //-------------------------------------------------------Trip_1 -----------------------------------------------
 
@@ -3838,6 +3785,9 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     step(STP_Pin, motorStep, delayBetweenStep);    
     delay(stableDelay);
 
+    if(i > 1 && PD_Value[i-1] > -2)
+      delay(30);
+
     if(i>0 && PD_Value[i-1] > -2)
       PD_Value[i] = Cal_PD_Input_IL(Get_PD_Points * 3);  // 2500
     else
@@ -3869,7 +3819,6 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
       //Curfit
       if (indexofBestIL != 0 && Pos_Best_Trip1 != Get_Position(XYZ))
       {
-        // MSGOutput("i:" + String(i) + ", Pos_Best_Trip1:" + String(Pos_Best_Trip1));
         double x[3];
         double y[3];
         for (int k = -1; k < 2; k++)
@@ -3984,6 +3933,9 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
       step(STP_Pin, motorStep, delayBetweenStep);
       delay(stableDelay);
+
+      if(i > 1 && PD_Value[i-1] > -2)
+       delay(30);
 
       PD_Value[i] = Cal_PD_Input_IL(Get_PD_Points);
       Step_Value[i] = Get_Position(XYZ);
@@ -4152,7 +4104,6 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
       deltaPos = abs(Pos_Best_Trip2 - Get_Position(XYZ)); //Two curves are totally different, then back to best pos in trip 2
 
-//      return false;
     }
 
     if (isStop)
@@ -4165,20 +4116,8 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     delay(2);
   }
 
-  // deltaPos +=600;
   MSGOutput("Delta Pos : " + String(deltaPos));
 
-  // step(STP_Pin, deltaPos, delayBetweenStep);
-  // delay(stableDelay);
-  // PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-  // DataOutput();
-  // DataOutput(XYZ, PD_Now); //int xyz, double pdValue
-
-  // if (PD_Now >= PD_Best)
-  //   MSGOutput("PD_Best");
-
-  // if(XYZ == 2) isTrip3Jump = true;
-  // else isTrip3Jump = false;
   isTrip3Jump = false;
 
   if(!isTrip3Jump)   
@@ -4533,15 +4472,10 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
   trip++;
   CMDOutput("~:" + msg + String(trip)); 
 
-  // PD_Value[0] = Cal_PD_Input_IL(Get_PD_Points);
-
   int Plus_Times = 0;
+  int trend_count = 0;
 
-  // int Trip2_Start_Position = 0;
   long Pos_Ini_Trip2 = Get_Position(XYZ);
-
-  // PD_Trip2_Best = PD_Value[0];
-  // PD_Best_Pos_Trip2 = Get_Position(XYZ);
 
   if (!isFirstPointPassBest)
   {
@@ -4567,7 +4501,7 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
 
       if (PD_Value[i] >= StopPDValue) //Condition 1
       {
-        Serial.println("Over StopPDValue");
+        Serial.println("Stop Condition 1 : Over StopPDValue");
 
         timer_2 = millis();
         ts = (timer_2 - timer_1) * 0.001;
@@ -4578,12 +4512,6 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
         PD_Best = PD_Value[i];
         return PD_Best;
       }
-
-      // if (!isReverse && i == 0 && PD_Value[0] < PD_Best) //Condition 2
-      // {
-      //   Serial.println("Forward_pass_best");
-      //   return PD_Best;
-      // }
 
       if (PD_Value[i] > PD_Best)
       {
@@ -4597,60 +4525,71 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
         PD_Best_Pos_Trip2 = Get_Position(XYZ);
       }
 
-      if (i >= 2 && PD_Value[i] < PD_Value[i - 1] && PD_Value[i-1] <= PD_Value[i - 2]) //Condition 3
+      if(i>=2 && PD_Value[i] <= PD_Value[i - 1]) //Condition 2
       {
-        if (abs(PD_Value[i - 2] - PD_Best) < 0.8 || PD_Value[i - 2] > PD_Best)
+        trend_count ++;
+        if(trend_count > 7)
         {
-          Serial.println("Pass best IL");
-          break;
+           Serial.println("Stop Condition 2 : Pass best IL");
+            break;
+          // if (abs(PD_Value[i - 3] - PD_Best) < 0.8 || PD_Value[i - 2] > PD_Best)
+          // {
+          //   Serial.println("Stop Condition 2 : Pass best IL");
+          //   break;
+          // }
         }
-      }   
+      }
+
+      // if (i >= 2 && PD_Value[i] < PD_Value[i - 1] && PD_Value[i-1] <= PD_Value[i - 2]) //Condition 2
+      // {
+      //   if (abs(PD_Value[i - 2] - PD_Best) < 0.8 || PD_Value[i - 2] > PD_Best)
+      //   {
+      //     Serial.println("Stop Condition 2 : Pass best IL");
+      //     break;
+      //   }
+      // }   
 
        if (i >= 4 
       && abs(PD_Value[i] - PD_Value[i - 1]) <=0.03 
       && abs(PD_Value[i-1] - PD_Value[i - 2]) <=0.03 
       && abs(PD_Value[i-2] - PD_Value[i - 3]) <=0.03 
       && abs(PD_Value[i-3] - PD_Value[i - 4]) <=0.03 
-      ) //Condition 3 //Condition 4
+      ) //Condition 3 
       {
         if(PD_Value[i] < PD_Best){
-          Serial.println("ERROR Status");
+          Serial.println("Stop Condition 3 : ERROR Status");
           break;
             // return 0;
         }
       }     
 
-      if (i >= 4 
-      && PD_Value[i] < PD_Value[i - 1] 
-      && PD_Value[i-1] <= PD_Value[i - 2]
-      && PD_Value[i-2] <= PD_Value[i - 3]
-      && PD_Value[i-3] <= PD_Value[i - 4]
-      ) //Condition 3
-      {
-        Serial.println("Falling IL");
-        isTrip3Jump = true;
-          break;
-      }     
+      // if (i >= 4 
+      // && PD_Value[i] < PD_Value[i - 1] 
+      // && PD_Value[i-1] <= PD_Value[i - 2]
+      // && PD_Value[i-2] <= PD_Value[i - 3]
+      // && PD_Value[i-3] <= PD_Value[i - 4]
+      // ) //Condition 4
+      // {
+      //   Serial.println("Stop Condition 4 : Falling IL");
+      //   isTrip3Jump = true;
+      //     break;
+      // }     
 
-      if (PD_Value[i] < -45) //Condition 4
+      if (PD_Value[i] < -45) //Condition 5
       {
-        Serial.println("Miss Target");
+        Serial.println("Stop Condition 5 : Miss Target");
         break;
       }
 
-      if (i == count - 1 && PD_Value[i] != PD_Best ) //Back to best position after all steps run out
-      {
-        
-      }
-      else if (i == count - 1 && PD_Value[i] == PD_Best) //未通過最高點
-      {
-        if (Plus_Times < 3)
+      if (i == count - 1 && PD_Value[i] == PD_Best) //未通過最高點
         {
-          MSGOutput("Plus three points");
-          count = count + 3;
-          Plus_Times++;
+          if (Plus_Times < 5)
+          {
+            MSGOutput("Plus three points");
+            count = count + 3;
+            Plus_Times++;
+          }
         }
-      }
     }
   }
 
@@ -4670,11 +4609,21 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
       DataOutput(XYZ, Cal_PD_Input_IL(Get_PD_Points)); //int xyz, double pdValue
     }
 
-    Move_Motor_abs(XYZ, PD_Best_Pos_Trip2); //Jump to Trip_2 start position
-    delay(100);
-
-    DataOutput(XYZ, Cal_PD_Input_IL(Get_PD_Points)); //int xyz, double pdValue
-    MSGOutput("Back to best position");
+    long pNow = PD_Best_Pos_Trip2;
+    if(xyz == 0)
+      pNow = X_Pos_Now;
+    else if (xyz == 1)
+      pNow = Y_Pos_Now;
+    else if (xyz == 2)
+      pNow = Z_Pos_Now;
+    
+    if(PD_Best_Pos_Trip2 != pNow)
+    {
+      Move_Motor_abs(XYZ, PD_Best_Pos_Trip2); //Jump to Trip_2 start position
+      delay(100);
+      DataOutput(XYZ, Cal_PD_Input_IL(Get_PD_Points)); //int xyz, double pdValue
+      MSGOutput("Back to best position");
+    }
   }
 
   delay(stableDelay);
@@ -5690,8 +5639,6 @@ int Function_Excecutation(String cmd, int cmd_No)
               {
                 MSGOutput("Update : IL Stable - Stop Auto Curing");
                 isStopAlign = true;
-                // isStop = true;
-                // break;
               }
               //Total curing time , 14 mins, 840s
               else if (Q_Time >= AQ_Total_TimeSpan - 1)
@@ -5700,19 +5647,10 @@ int Function_Excecutation(String cmd, int cmd_No)
                 isStop = true;
                 break;
               }
-
-              // if (isILStable && (Q_Time) >= 800 && !isStopAlign) //800
-              // {
-              //   MSGOutput("IL Stable in Scan - Stop Auto Curing");
-              //   isStopAlign = true;
-              //   // break;
-              // }
             }
 
             if (isStop)
               break;
-
-            // MSGOutput("Z_ScanSTP: " + String(Z_ScanSTP));
 
             //Q scan conditions
             if (true)
@@ -5753,44 +5691,53 @@ int Function_Excecutation(String cmd, int cmd_No)
 
             PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
 
-            if (PD_Now >= (AutoCuring_Best_IL - (Acceptable_Delta_IL)))
+            int keyValue = KeyValueConverter();
+            Serial.println("KeyValue:" + String(keyValue));
+
+            if (PD_Now >= (AutoCuring_Best_IL - (Acceptable_Delta_IL)) && keyValue != 8)
             {
               time_curing_2 = millis();
               continue;
             }
             else  //Start Align
             {
-              if(!isStopAlign)
+              if(!isStopAlign || keyValue == 8)
               {
-                time_curing_3 = millis();
-                Q_Time = (time_curing_3 - time_curing_0) / 1000;                
+                // time_curing_3 = millis();
+                // Q_Time = (time_curing_3 - time_curing_0) / 1000;                
 
                 //Q Scan
-                if (true && Q_Time <= 900 && !isStopAlign)
+                if (true && Q_Time <= 900 && !isStopAlign || keyValue == 8)
                 {
-                  MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
+                  // MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
 
                   PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
 
+                  // Into Q Scan X
                   if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
                   {
                     Fine_Scan(1, false); //Q Scan X
 
-                    MSGOutput("X PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
+                    Q_Time = ((millis() - time_curing_0) / 1000);
+                    MSGOutput("QT_IL:" + String(Q_Time)+ " s, " + String(PD_Now));
+                    // MSGOutput("X PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
 
                     if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
+                    {
                       Fine_Scan(1, false); //Q Scan X
+                      Q_Time = ((millis() - time_curing_0) / 1000);
+                      MSGOutput("QT_IL:" + String(Q_Time)+ " s, " + String(PD_Now));
+                    }
 
                     if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820 && !isStopAlign){
                       MSGOutput("Update : Delta IL < 0.25, break"); //break curing loop
                       isStopAlign = true;
-                      // break;
                     }
                   }
 
-                  time_curing_3 = millis();
-                  Q_Time = (time_curing_3 - time_curing_0) / 1000;
-                  MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
+                  // time_curing_3 = millis();
+                  // Q_Time = (time_curing_3 - time_curing_0) / 1000;
+                  // MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
 
                   if (isStop)
                     break;
@@ -5801,25 +5748,31 @@ int Function_Excecutation(String cmd, int cmd_No)
                   PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
                   MSGOutput("Q_State: " + String(Q_State));
 
+                  // Into Q Scan Y
                   if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL) || Q_State == 1)
                   {
                     Fine_Scan(2, false); //--------------------------------------------------------Q Scan Y
 
-                    MSGOutput("Y PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
+                    Q_Time = ((millis() - time_curing_0) / 1000);
+                    MSGOutput("QT_IL:" + String(Q_Time)+ " s, " + String(PD_Now));
+                    // MSGOutput("Y PD_Now:" + String(PD_Now) + ", IL:" + String(Cal_PD_Input_IL(Get_PD_Points)));
 
                     if (PD_Now - Cal_PD_Input_IL(Get_PD_Points) > 1)
+                    {
                       Fine_Scan(2, false); //------------------------------------------------------Q Scan Y
+                      Q_Time = ((millis() - time_curing_0) / 1000);
+                      MSGOutput("QT_IL:" + String(Q_Time)+ " s, " + String(PD_Now));
+                    }
 
                     if (Q_State >= 4 && (maxIL_in_FineScan - minIL_in_FineScan)<=0.25 && Q_Time>=820 && !isStopAlign){
                       MSGOutput("Update : Delta IL < 0.25, break"); //break curing loop
                       isStopAlign = true;
-                      // break;
                     }
                   }
 
-                  time_curing_3 = millis();
-                  Q_Time = (time_curing_3 - time_curing_0) / 1000;
-                  MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
+                  // time_curing_3 = millis();
+                  // Q_Time = (time_curing_3 - time_curing_0) / 1000;
+                  // MSGOutput("Auto-Curing Time: " + String(Q_Time) + " s");
 
                   if (isStop)
                     break;
@@ -5831,6 +5784,7 @@ int Function_Excecutation(String cmd, int cmd_No)
 
                   bool K_OK = true;
 
+                  //Into Q Scan Z
                   if (PD_Now < (AutoCuring_Best_IL - Acceptable_Delta_IL))
                   {
                     //-----------------------------------------------------------Q Scan Z
@@ -5841,6 +5795,8 @@ int Function_Excecutation(String cmd, int cmd_No)
                     CMDOutput("AS");
                     K_OK = Scan_AllRange_TwoWay(2, FS_Count_Z, Z_ScanSTP, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Scan,Trip_");
                     CMDOutput("%:");
+                    Q_Time = ((millis() - time_curing_0) / 1000);
+                    MSGOutput("QT_IL:" + String(Q_Time)+ " s, " + String(PD_Now));
                     
                     if (!K_OK)
                     {
@@ -5848,9 +5804,9 @@ int Function_Excecutation(String cmd, int cmd_No)
                       Scan_AllRange_TwoWay(2, FS_Count_Z, Z_ScanSTP, FS_Stable_Z, 0, FS_DelaySteps_Z, StopValue, FS_Avg_Z, FS_Trips_Z, "Z Re-Scan,Trip_");
                       // Scan_AllRange_TwoWay(2, 8, Z_ScanSTP, 30, 0, 100, StopValue, Get_PD_Points, 2, "Z Re-Scan, Trip_");
                       CMDOutput("%:");
+                      Q_Time = ((millis() - time_curing_0) / 1000);
+                      MSGOutput("QT_IL:" + String(Q_Time)+ " s, " + String(PD_Now));
                     }
-                    
-                    
                   }
 
                   digitalWrite(Tablet_PD_mode_Trigger_Pin, false); //false is PD mode, true is Servo mode
@@ -5861,7 +5817,6 @@ int Function_Excecutation(String cmd, int cmd_No)
                 }
 
                 PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-                // MSGOutput("Q_State: " + String(Q_State));
 
                 if (abs(PD_Before - PD_Now) < 0.3 && (time_curing_3 - time_curing_0) > 750000)
                 {
