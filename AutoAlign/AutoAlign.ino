@@ -146,11 +146,11 @@ int AA_ScanRough_Scan_Steps_Y_A = 25;
 int AA_ScanRough_Scan_Steps_Y_B = 40;  //30
 int AA_ScanRough_Scan_Steps_Y_C = 50;  //40
 int AA_ScanRough_Scan_Steps_Y_D = 60;  //70
-int AA_ScanRough_Scan_Steps_X_A = 30;   //25
-int AA_ScanRough_Scan_Steps_X_B = 80;   //30
-int AA_ScanRough_Scan_Steps_X_C = 120;  //80
-int AA_ScanRough_Scan_Steps_X_D = 150;  //100
-int AA_ScanRough_Scan_Steps_X_E = 180;  //120
+int AA_ScanRough_Scan_Steps_X_A = 35;   //25
+int AA_ScanRough_Scan_Steps_X_B = 45;   //30
+int AA_ScanRough_Scan_Steps_X_C = 75;  //80
+int AA_ScanRough_Scan_Steps_X_D = 145;  //100
+int AA_ScanRough_Scan_Steps_X_E = 150;  //120
 int AA_ScanFine_Scan_Steps_Z_A = 200;
 int AA_ScanFine_Scan_Steps_Y_A = 20;
 int AA_ScanFine_Scan_Steps_X_A = 20;
@@ -225,10 +225,18 @@ uint16_t EP_FS_Avg_Z = 352;
 uint16_t EP_FS_Trips_X = 360;
 uint16_t EP_FS_Trips_Y = 368;
 uint16_t EP_FS_Trips_Z = 376;
+uint16_t EP_AA_ScanRough_Feed_Steps_Z_A = 416;
+uint16_t EP_AA_ScanRough_Feed_Steps_Z_B = 424;
+uint16_t EP_AA_ScanRough_Feed_Ratio_Z_A = 432;
+uint16_t EP_AA_ScanRough_Feed_Ratio_Z_B = 440;
+uint16_t EP_AA_ScanRough_Feed_Ratio_Z_C = 448;
+uint16_t EP_AA_ScanRough_Feed_Ratio_Z_D = 456;
 
-int PD_Ref_Array[15][2] = 
+uint16_t EP_PD_Ref_Array = 800;  //800~958
+
+int PD_Ref_Array[16][2] = 
   {
-    {24260, -3},
+    {24260, -3}, 
     {23644, -4},
     {23282, -5},
     {22571, -7},
@@ -243,6 +251,7 @@ int PD_Ref_Array[15][2] =
     {14663, -30},
     {11299, -40},
     {8903, -50},
+    {7280, -60},
   };
 
 
@@ -503,10 +512,10 @@ double ILConverter(double pdDac)
 
   if(pdDac >= PD_Ref_Array[0][0])
     return -3;
-  else if (pdDac < PD_Ref_Array[14][0])
-    return -50;
+  else if (pdDac < PD_Ref_Array[15][0])
+    return -60;
 
-  for (size_t i = 1; i < 15; i++)
+  for (size_t i = 1; i < 16; i++)
   {        
     if(pdDac >= PD_Ref_Array[i][0])
     {
@@ -633,7 +642,7 @@ void CleanEEPROM(int startPosition, int datalength)
   {
     EEPROM.write(i, ' ');
   }
-  Serial.println("Clean EEPROM");
+  // Serial.println("Clean EEPROM");
 }
 
 void WriteInfoEEPROM(String data, int start_position)
@@ -1700,9 +1709,8 @@ uint8_t broadcastAddress[] = {0x8C, 0x4B, 0x14, 0x16, 0x37, 0xF8};   //Server Ma
 String SSD, Msg;
 
 typedef struct struct_send_message {
-    String client_name = ID;
+    String client_name = Station_ID; //ID to Station_ID
     char msg[50];
-    // char value[20];
 } struct_send_message;
 
 // Create a struct_message
@@ -1788,8 +1796,6 @@ void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
   }
 }
 
-
-
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 void ESP_Now_Initialize()
@@ -1869,9 +1875,7 @@ void Task_2_sendData(void *pvParameters)
     char CH[50];
 
    for (;;)
-   {
-    
-
+   {    
     xStatus = xQueueReceive(queue, &CH, xTickToWait);
 
     if(xStatus == pdPASS)
@@ -1891,25 +1895,6 @@ void Task_2_sendData(void *pvParameters)
 int ccc = 0;
 void DataSent_Server(String MSG)
 {
-  // int a = 100;
-  // char ch[50];
-  // MSG.toCharArray(ch, 50);
-  // ccc++;
-  // const TickType_t xTickToWait= pdMS_TO_TICKS(100);
-  // xQueueSend(queue, &ch, xTickToWait);
-  
-  // xQueueSend(queue, &MSG, portMAX_DELAY);
-
-  //在core 0啟動 mision 1
-  // xTaskCreatePinnedToCore(
-  //     Task_2_sendData, /* 任務實際對應的Function */
-  //     "Task_2",        /* 任務名稱 */
-  //     10000,           /* 堆疊空間 */
-  //     NULL,            /* 無輸入值 */
-  //     0,               /* 優先序0 */
-  //     &Task_2,         /* 對應的任務變數位址 */
-  //     0);              /*指定在核心0執行 */
-
   MSG.toCharArray(sendmsg.msg, 30);
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &sendmsg, sizeof(sendmsg));
 }
@@ -1927,10 +1912,6 @@ void setup()
   // WiFi.mode(WIFI_MODE_STA);
   // Serial.print("ESP32 Board MAC Address:  ");
   // Serial.println(WiFi.macAddress());
-
-  // return;
-
-  
 
   // return;
 
@@ -2007,10 +1988,10 @@ void setup()
 
     ID = ReadInfoEEPROM(8, 8);
     MSGOutput("Board ID: " + ReadInfoEEPROM(8, 8)); 
-    sendmsg.client_name = ID;
 
     Station_ID = ReadInfoEEPROM(16, 8);
     MSGOutput("Station ID: " + ReadInfoEEPROM(16, 8)); 
+    sendmsg.client_name = Station_ID;
 
     eepromString = ReadInfoEEPROM(24, 8);
     X_backlash = eepromString.toInt();
@@ -2116,6 +2097,31 @@ void setup()
 
     FS_Trips_Z = ReadInfoEEPROM(EP_FS_Trips_Z, 8).toInt();
     MSGOutput("FS_Trips_Z: " + String(FS_Trips_Z));
+
+    AA_ScanRough_Feed_Steps_Z_A = ReadInfoEEPROM(EP_AA_ScanRough_Feed_Steps_Z_A, 8).toInt();
+    MSGOutput("AA_ScanRough_Feed_Steps_Z_A: " + String(AA_ScanRough_Feed_Steps_Z_A));
+
+    AA_ScanRough_Feed_Steps_Z_B = ReadInfoEEPROM(EP_AA_ScanRough_Feed_Steps_Z_B, 8).toInt();
+    MSGOutput("AA_ScanRough_Feed_Steps_Z_B: " + String(AA_ScanRough_Feed_Steps_Z_B));
+
+    AA_ScanRough_Feed_Ratio_Z_A = ReadInfoEEPROM(EP_AA_ScanRough_Feed_Ratio_Z_A, 8).toInt();
+    MSGOutput("AA_ScanRough_Feed_Ratio_Z_A: " + String(AA_ScanRough_Feed_Ratio_Z_A));
+    
+    AA_ScanRough_Feed_Ratio_Z_B = ReadInfoEEPROM(EP_AA_ScanRough_Feed_Ratio_Z_B, 8).toInt();
+    MSGOutput("AA_ScanRough_Feed_Ratio_Z_B: " + String(AA_ScanRough_Feed_Ratio_Z_B));
+
+    AA_ScanRough_Feed_Ratio_Z_C = ReadInfoEEPROM(EP_AA_ScanRough_Feed_Ratio_Z_C, 8).toInt();
+    MSGOutput("AA_ScanRough_Feed_Ratio_Z_C: " + String(AA_ScanRough_Feed_Ratio_Z_C));
+
+    AA_ScanRough_Feed_Ratio_Z_D = ReadInfoEEPROM(EP_AA_ScanRough_Feed_Ratio_Z_D, 8).toInt();
+    MSGOutput("AA_ScanRough_Feed_Ratio_Z_D: " + String(AA_ScanRough_Feed_Ratio_Z_D));
+
+    //EP_PD_Ref_Array
+    MSGOutput("PD_Ref_Array:");
+    for (size_t i = 0; i < 16; i++)
+    {
+      MSGOutput(String(PD_Ref_Array[i][0]) + ", "+ String(PD_Ref_Array[i][1]));
+    }
   }
   
   #pragma endregion
@@ -2421,6 +2427,7 @@ void Move_Motor_Cont(byte dir_pin, byte stp_pin, bool dirt, long moveSteps, int 
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+double FineScan_StopValue = 0;
 String Region, msg;
 bool Fine_Scan(int axis, bool Trip2Stop)
 {
@@ -2443,9 +2450,7 @@ bool Fine_Scan(int axis, bool Trip2Stop)
   String msg;
 
   bool K_OK = true;
-  bool initial_wifi_status = isWiFiConnected;
-
-  
+  bool initial_wifi_status = isWiFiConnected;  
 
   if (axis < 4)
   {
@@ -2458,7 +2463,7 @@ bool Fine_Scan(int axis, bool Trip2Stop)
       MotorCC_X = digitalRead(X_DIR_Pin);
 
       CMDOutput("AS");      
-      K_OK = Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, MotorCC_X, FS_DelaySteps_X, 0, FS_Avg_X, FS_Trips_X, "X Scan,Trip_");
+      K_OK = Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, MotorCC_X, FS_DelaySteps_X, StopValue, FS_Avg_X, FS_Trips_X, "X Scan,Trip_");
       CMDOutput("%:");
 
       if (!K_OK)
@@ -2466,7 +2471,7 @@ bool Fine_Scan(int axis, bool Trip2Stop)
         MotorCC_X = digitalRead(X_DIR_Pin);
 
         CMDOutput("AS");
-        Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, MotorCC_X, FS_DelaySteps_X, 0, FS_Avg_X, FS_Trips_X, "X Re-Scan,Trip_");
+        Scan_AllRange_TwoWay(0, FS_Count_X, FS_Steps_X, FS_Stable_X, MotorCC_X, FS_DelaySteps_X, StopValue, FS_Avg_X, FS_Trips_X, "X Re-Scan,Trip_");
         CMDOutput("%:");
       }
 
@@ -2767,7 +2772,6 @@ void AutoAlign()
           DataOutput();
 
           PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-          // DataSent_Server("PD Power:" + String(PD_Now));
 
           if (PD_Now > stopValue)
           {
@@ -2898,7 +2902,7 @@ void AutoAlign()
         if(PD_After==0) break;;
         CMDOutput("%:");
 
-        if(PD_Before > -4)
+        if(PD_After > -3.5)
         {
           MSGOutput("PreIL > -3, break Z loop");
           break;
@@ -2923,7 +2927,7 @@ void AutoAlign()
         CMDOutput("%:");
       }
 
-      if(PD_Before > -4)
+      if(PD_After > -3.5)
       {
         MSGOutput("PreIL > -3, break Z loop");
         break;
@@ -3665,6 +3669,9 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   int indexofBestIL = 0;
   double PD_Value[4 * count + 1];
   long Step_Value[4 * count + 1];
+  double Gradient_IL_Step[4 * count + 1];
+  int GradientCount = 0;
+  int GradientTarget = 0.007;
   unsigned long timer_1 = 0, timer_2 = 0;
   // delayBetweenStep = stableDelay;
   timer_1 = millis();
@@ -3678,18 +3685,21 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     DIR_Pin = X_DIR_Pin;
     STP_Pin = X_STP_Pin;
     backlash = X_backlash;
+    GradientTarget = 0.007;
     delay(5);
     break;
   case 1:
     DIR_Pin = Y_DIR_Pin;
     STP_Pin = Y_STP_Pin;
     backlash = Y_backlash;
+    GradientTarget = 0.007;
     delay(5);
     break;
   case 2:
     DIR_Pin = Z_DIR_Pin;
     STP_Pin = Z_STP_Pin;
     backlash = Z_backlash;
+    GradientTarget = 0.003;
     delay(5);
     break;
   }
@@ -3700,6 +3710,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
   MSGOutput("Scan Step: " + String(motorStep));
   MSGOutput("Backlash: " + String(backlash));
+  MSGOutput("GradientTarget : " + String(GradientTarget, 4));
   CMDOutput(">>" + msg + String(trip));
 
   MSGOutput("StopValue:" + String(StopPDValue));
@@ -3812,12 +3823,42 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     DataOutput(XYZ, PD_Value[i]); //int xyz, double pdValue
     DataSent_Server("PD Power:" + String(PD_Value[i]));
 
-    if(IL_Best_Trip1 >= -2.5 && PD_Value[i] <= (IL_Best_Trip1 - 1.5) && Trips == 1)
+    //Gradient analyze
+    if(i>0)
+    {
+      Gradient_IL_Step[i-1] = (PD_Value[i] - PD_Value[i-1]) / motorStep;
+
+      if(Gradient_IL_Step[i-1] <= -0.01)
+        GradientCount = 0;
+      else
+        GradientCount++;
+
+      if(i > 3)
+      {
+        // MSGOutput("G: " + String(Gradient_IL_Step[i-1], 4));
+        // MSGOutput("C: " + String(GradientCount));
+
+        if(PD_Value[i] > -1.35 && Gradient_IL_Step[i-1] <= GradientTarget && GradientCount > 3)
+        {
+          MSGOutput("Gradient <= GradientTarget : " + String(Gradient_IL_Step[i-1], 4));
+
+          timer_2 = millis();
+          double ts = (timer_2 - timer_1) * 0.001;
+          CMDOutput("t:" + String(ts, 2));
+
+          isWiFiConnected = iniWifiStatus;
+
+          return true;
+        }
+      }
+    }
+
+    if(IL_Best_Trip1 >= -2 && PD_Value[i] <= (IL_Best_Trip1 - 1.5) && Trips == 1 && i>4)
     {
       Serial.println("IL < (IL-1.5): " + String(PD_Value[i]));     
 
       //Curfit
-      if (indexofBestIL != 0 && Pos_Best_Trip1 != Get_Position(XYZ))
+      if (indexofBestIL != 0 && Pos_Best_Trip1 != Get_Position(XYZ) && XYZ != 2)
       {
         double x[3];
         double y[3];
@@ -3830,7 +3871,19 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
         Pos_Best_Trip1 = Curfit(x, y, 3);
         MSGOutput("Best IL position in Trip_1 is: " + String(Pos_Best_Trip1));
       }
-
+      if (indexofBestIL > 1 && indexofBestIL < dataCount -2 && Pos_Best_Trip1 != Get_Position(XYZ) && XYZ == 2)
+      {
+        double x[5];
+        double y[5];
+        for (int k = -2; k < 3; k++)
+        {
+          x[k + 1] = Step_Value[indexofBestIL + k]; //idex * step = real steps
+          y[k + 1] = PD_Value[indexofBestIL + k];   //fill this with your sensor data
+          Serial.println("Point : " + String(x[k + 1]) + " , " + String(y[k + 1]));
+        }
+        Pos_Best_Trip1 = Curfit(x, y, 3);
+        MSGOutput("Best IL position in Trip_1 is: " + String(Pos_Best_Trip1));
+      }
       break;
     }
 
@@ -3897,6 +3950,8 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   MSGOutput(" --- Trip 2 --- " );
   MSGOutput("trip: " + String(trip) );
   MSGOutput("Trips: " + String(Trips) );
+
+  GradientCount = 0;
   
   if (Trips != 1)
   {
@@ -3956,6 +4011,36 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
       DataOutput();
       DataOutput(XYZ, PD_Value[i]); //int xyz, double pdValue
       DataSent_Server("PD Power:" + String(PD_Value[i]));
+
+      //Gradient analyze
+      if(i>0)
+      {
+        Gradient_IL_Step[i-1] = (PD_Value[i] - PD_Value[i-1]) / motorStep;
+
+        if(Gradient_IL_Step[i-1] <= -0.01)
+          GradientCount = 0;
+        else
+          GradientCount++;
+
+        if(i > 3)
+        {
+          // MSGOutput("G: " + String(Gradient_IL_Step[i-1], 4));
+          // MSGOutput("C: " + String(GradientCount));
+
+          if(PD_Value[i] > -1.35 && Gradient_IL_Step[i-1] <= GradientTarget && GradientCount > 3)
+          {
+            MSGOutput("Gradient <= 0.007 : " + String(Gradient_IL_Step[i-1], 4));
+
+            timer_2 = millis();
+            double ts = (timer_2 - timer_1) * 0.001;
+            CMDOutput("t:" + String(ts, 2));
+
+            isWiFiConnected = iniWifiStatus;
+
+            return true;
+          }
+        }
+      }
 
       if(IL_Best_Trip1 >= -2.5 && PD_Value[i] <= (IL_Best_Trip1 - 1.5) && Trips == 1)
       {
@@ -4103,7 +4188,6 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
       delay(stableDelay + 200);
 
       deltaPos = abs(Pos_Best_Trip2 - Get_Position(XYZ)); //Two curves are totally different, then back to best pos in trip 2
-
     }
 
     if (isStop)
@@ -4118,7 +4202,10 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 
   MSGOutput("Delta Pos : " + String(deltaPos));
 
-  isTrip3Jump = false;
+  // if (XYZ == 2) 
+  //   isTrip3Jump= true;
+  // else
+    isTrip3Jump = false;
 
   if(!isTrip3Jump)   
   {
@@ -4193,19 +4280,10 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   {  
     Move_Motor(DIR_Pin, STP_Pin, MotorCC, deltaPos, delayBetweenStep, stableDelay); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
 
-    // step(STP_Pin, deltaPos, delayBetweenStep);
-    // delay(stableDelay);
     PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-    // DataOutput();
     DataOutput(XYZ, PD_Now); //int xyz, double pdValue
     MSGOutput("Trip 3 Jump");
   }
-
-  // delay(500);
-  // Move_Motor(DIR_Pin, STP_Pin, MotorCC, motorStep, delayBetweenStep, 0); //(dir_pin, stp_pin, direction, steps, delaybetweensteps, stabledelay)
-  // delay(500);
-  // PD_Now = Cal_PD_Input_IL(Get_PD_Points);
-  // DataOutput(XYZ, PD_Now); //int xyz, double pdValue
 
   PD_Now = Cal_PD_Input_IL(2*Get_PD_Points);
   MSGOutput("Best IL: " + String(PD_Best));
@@ -4224,6 +4302,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
+
 
 void BackLash_Reverse(int XYZ, bool dir, int stableDelay)
 {
@@ -4436,23 +4515,12 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
     PD_Value[i] = 0;
   }
 
-  // if (abs(PD_Now - PD_initial) < 0.05)
-  // {
-  //   Serial.println("Delta IL < 0.05");
-
-  //   timer_2 = millis();
-  //   ts = (timer_2 - timer_1) * 0.001;
-  //   CMDOutput("t:" + String(ts, 2));
-
-  //   isStop = true;
-
-  //   return true;
-  // }
-
   bool isFirstPointPassBest = false;
+  bool Dir = true;
 
   if (PD_Now >= PD_initial)
   {
+    Dir = true;
     PD_Best = PD_Now;
     digitalWrite(DIR_Pin, MotorCC);
     delay(10);
@@ -4462,6 +4530,7 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
   }
   else
   {
+    Dir = false;
     PD_Best = PD_initial;
     BackLash_Reverse(XYZ, MotorCC, stableDelay);
     Serial.println("MotorCC_Reverse");
@@ -4530,26 +4599,22 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
         trend_count ++;
         if(trend_count > 7)
         {
-           Serial.println("Stop Condition 2 : Pass best IL");
-            break;
-          // if (abs(PD_Value[i - 3] - PD_Best) < 0.8 || PD_Value[i - 2] > PD_Best)
-          // {
-          //   Serial.println("Stop Condition 2 : Pass best IL");
-          //   break;
-          // }
+           Serial.println("Stop Condition 2-1 : Pass best IL");
+           break;          
+        }
+        else if(Dir && trend_count > 3)
+        {
+          Serial.println("Stop Condition 2-2 : Pass best IL");
+          break;
+        }
+        else if (trend_count >3 && i >= 12)
+        {
+          Serial.println("Stop Condition 2-3 : Pass best IL");
+          break;
         }
       }
-
-      // if (i >= 2 && PD_Value[i] < PD_Value[i - 1] && PD_Value[i-1] <= PD_Value[i - 2]) //Condition 2
-      // {
-      //   if (abs(PD_Value[i - 2] - PD_Best) < 0.8 || PD_Value[i - 2] > PD_Best)
-      //   {
-      //     Serial.println("Stop Condition 2 : Pass best IL");
-      //     break;
-      //   }
-      // }   
-
-       if (i >= 4 
+      
+       if (i >= 6 
       && abs(PD_Value[i] - PD_Value[i - 1]) <=0.03 
       && abs(PD_Value[i-1] - PD_Value[i - 2]) <=0.03 
       && abs(PD_Value[i-2] - PD_Value[i - 3]) <=0.03 
@@ -4559,22 +4624,9 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
         if(PD_Value[i] < PD_Best){
           Serial.println("Stop Condition 3 : ERROR Status");
           break;
-            // return 0;
         }
       }     
-
-      // if (i >= 4 
-      // && PD_Value[i] < PD_Value[i - 1] 
-      // && PD_Value[i-1] <= PD_Value[i - 2]
-      // && PD_Value[i-2] <= PD_Value[i - 3]
-      // && PD_Value[i-3] <= PD_Value[i - 4]
-      // ) //Condition 4
-      // {
-      //   Serial.println("Stop Condition 4 : Falling IL");
-      //   isTrip3Jump = true;
-      //     break;
-      // }     
-
+     
       if (PD_Value[i] < -45) //Condition 5
       {
         Serial.println("Stop Condition 5 : Miss Target");
@@ -4646,8 +4698,6 @@ double AutoAlign_Scan_DirectionJudge_V2(int XYZ, int count, int Threshold, int m
   Serial.print("TS:");
   Serial.println(ts, 2);
   Serial.println(" ");
-
-  // if(PD_Best < 40 ) isStop = true;
 
   return PD_Best;
 }
@@ -4980,18 +5030,41 @@ int Function_Classification(String cmd, int ButtonSelected)
         AA_SpiralFine_Scan_Steps_Y_D = cmd.toInt();
       else if (ParaName == "AA_SpiralFine_Scan_Steps_Y_E")
         AA_SpiralFine_Scan_Steps_Y_E = cmd.toInt();
+
+
+
       else if (ParaName == "AA_ScanRough_Feed_Steps_Z_A")
+      {
         AA_ScanRough_Feed_Steps_Z_A = cmd.toInt();
+        Serial.println("Update EEPROM AA_ScanRough_Feed_Steps_Z_A: " + WR_EEPROM(EP_AA_ScanRough_Feed_Steps_Z_A, cmd));
+      }
       else if (ParaName == "AA_ScanRough_Feed_Steps_Z_B")
+      {
         AA_ScanRough_Feed_Steps_Z_B = cmd.toInt();
-      else if (ParaName == "AA_ScanRough_Feed_Ratio_Z_A")
+        Serial.println("Update EEPROM AA_ScanRough_Feed_Steps_Z_B: " + WR_EEPROM(EP_AA_ScanRough_Feed_Steps_Z_B, cmd));
+      }
+
+
+      else if (ParaName == "AA_ScanRough_Feed_Ratio_Z_A")    
+      {
         AA_ScanRough_Feed_Ratio_Z_A = cmd.toDouble();
+        Serial.println("Update EEPROM AA_ScanRough_Feed_Ratio_Z_A: " + WR_EEPROM(EP_AA_ScanRough_Feed_Ratio_Z_A, cmd));
+      }
       else if (ParaName == "AA_ScanRough_Feed_Ratio_Z_B")
+      {
         AA_ScanRough_Feed_Ratio_Z_B = cmd.toDouble();
+        Serial.println("Update EEPROM AA_ScanRough_Feed_Ratio_Z_B: " + WR_EEPROM(EP_AA_ScanRough_Feed_Ratio_Z_B, cmd));
+      }
       else if (ParaName == "AA_ScanRough_Feed_Ratio_Z_C")
+      {
         AA_ScanRough_Feed_Ratio_Z_C = cmd.toDouble();
+        Serial.println("Update EEPROM AA_ScanRough_Feed_Ratio_Z_C: " + WR_EEPROM(EP_AA_ScanRough_Feed_Ratio_Z_C, cmd));
+      }
       else if (ParaName == "AA_ScanRough_Feed_Ratio_Z_D")
-        AA_ScanRough_Feed_Ratio_Z_D = cmd.toDouble();
+      {
+        AA_ScanRough_Feed_Ratio_Z_D = cmd.toDouble();   
+        Serial.println("Update EEPROM AA_ScanRough_Feed_Ratio_Z_D: " + WR_EEPROM(EP_AA_ScanRough_Feed_Ratio_Z_D, cmd));
+      }
 
       else if (ParaName == "AA_ScanRough_Scan_Steps_Y_A")
         AA_ScanRough_Scan_Steps_Y_A = cmd.toInt();
@@ -5027,132 +5100,132 @@ int Function_Classification(String cmd, int ButtonSelected)
       else if (ParaName == "AQ_Scan_Compensation_Steps_Z_A")
       {
         AQ_Scan_Compensation_Steps_Z_A = cmd.toInt();
-        Serial.println("Write EEPROM AQ_Scan_Compensation_Steps_Z_A: " + WR_EEPROM(160, cmd));
+        Serial.println("Update EEPROM AQ_Scan_Compensation_Steps_Z_A: " + WR_EEPROM(160, cmd));
       }
       else if (ParaName == "AQ_Total_TimeSpan")
       {
         AQ_Total_TimeSpan = cmd.toInt();
-        Serial.println("Write EEPROM AQ_Total_TimeSpan: " + WR_EEPROM(168, cmd));
+        Serial.println("Update EEPROM AQ_Total_TimeSpan: " + WR_EEPROM(168, cmd));
       }
 
       else if (ParaName == "AA_ScanFinal_Scan_Delay_X_A")
       {
         AA_ScanFinal_Scan_Delay_X_A = cmd.toInt();
-        Serial.println("Write EEPROM AA_ScanFinal_Scan_Delay_X_A: " + WR_EEPROM(80, cmd));
+        Serial.println("Update EEPROM AA_ScanFinal_Scan_Delay_X_A: " + WR_EEPROM(80, cmd));
       }
 
       else if (ParaName == "AQ_Scan_Steps_Z_A")
       {
         AQ_Scan_Steps_Z_A = cmd.toInt();
-        Serial.println("Write EEPROM AQ_Scan_Steps_Z_A: " + WR_EEPROM(176, cmd));
+        Serial.println("Update EEPROM AQ_Scan_Steps_Z_A: " + WR_EEPROM(176, cmd));
       }
       else if (ParaName == "AQ_Scan_Steps_Z_B")
       {
         AQ_Scan_Steps_Z_B = cmd.toInt();
-        Serial.println("Write EEPROM AQ_Scan_Steps_Z_B: " + WR_EEPROM(184, cmd));
+        Serial.println("Update EEPROM AQ_Scan_Steps_Z_B: " + WR_EEPROM(184, cmd));
       }
       else if (ParaName == "AQ_Scan_Steps_Z_C")
       {
         AQ_Scan_Steps_Z_C = cmd.toInt();
-        Serial.println("Write EEPROM AQ_Scan_Steps_Z_C: " + WR_EEPROM(192, cmd));
+        Serial.println("Update EEPROM AQ_Scan_Steps_Z_C: " + WR_EEPROM(192, cmd));
       }
       else if (ParaName == "AQ_Scan_Steps_Z_D")
       {
         AQ_Scan_Steps_Z_D = cmd.toInt();
-        Serial.println("Write EEPROM AQ_Scan_Steps_Z_D: " + WR_EEPROM(200, cmd));
+        Serial.println("Update EEPROM AQ_Scan_Steps_Z_D: " + WR_EEPROM(200, cmd));
       }
 
       else if (ParaName == "FS_Count_X")
       {
         FS_Count_X = cmd.toInt();
-        Serial.println("Write EEPROM FS_Count_X: " + WR_EEPROM(EP_FS_Count_X, cmd));
+        Serial.println("Update EEPROM FS_Count_X: " + WR_EEPROM(EP_FS_Count_X, cmd));
       }
       else if (ParaName == "FS_Steps_X")
       {
         FS_Steps_X = cmd.toInt();
-        Serial.println("Write EEPROM FS_Steps_X: " + WR_EEPROM(EP_FS_Steps_X, cmd));
+        Serial.println("Update EEPROM FS_Steps_X: " + WR_EEPROM(EP_FS_Steps_X, cmd));
       }
       else if (ParaName == "FS_Stable_X")
       {
         FS_Stable_X = cmd.toInt();
-        Serial.println("Write EEPROM FS_Stable_X: " + WR_EEPROM(EP_FS_Stable_X, cmd));
+        Serial.println("Update EEPROM FS_Stable_X: " + WR_EEPROM(EP_FS_Stable_X, cmd));
       }
       else if (ParaName == "FS_DelaySteps_X")
       {
         FS_DelaySteps_X = cmd.toInt();
-        Serial.println("Write EEPROM FS_DelaySteps_X: " + WR_EEPROM(EP_FS_DelaySteps_X, cmd));
+        Serial.println("Update EEPROM FS_DelaySteps_X: " + WR_EEPROM(EP_FS_DelaySteps_X, cmd));
       }
       else if (ParaName == "FS_Avg_X")
       {
         FS_Avg_X = cmd.toInt();
-        Serial.println("Write EEPROM FS_Avg_X: " + WR_EEPROM(EP_FS_Avg_X, cmd));
+        Serial.println("Update EEPROM FS_Avg_X: " + WR_EEPROM(EP_FS_Avg_X, cmd));
       }
 
       else if (ParaName == "FS_Count_Y")
       {
         FS_Count_Y = cmd.toInt();
-        Serial.println("Write EEPROM FS_Count_Y: " + WR_EEPROM(EP_FS_Count_Y, cmd));
+        Serial.println("Update EEPROM FS_Count_Y: " + WR_EEPROM(EP_FS_Count_Y, cmd));
       }
       else if (ParaName == "FS_Steps_Y")
       {
         FS_Steps_Y = cmd.toInt();
-        Serial.println("Write EEPROM FS_Steps_Y: " + WR_EEPROM(EP_FS_Steps_Y, cmd));
+        Serial.println("Update EEPROM FS_Steps_Y: " + WR_EEPROM(EP_FS_Steps_Y, cmd));
       }
       else if (ParaName == "FS_Stable_Y")
       {
         FS_Stable_Y = cmd.toInt();
-        Serial.println("Write EEPROM FS_Stable_Y: " + WR_EEPROM(EP_FS_Stable_Y, cmd));
+        Serial.println("Update EEPROM FS_Stable_Y: " + WR_EEPROM(EP_FS_Stable_Y, cmd));
       }
       else if (ParaName == "FS_DelaySteps_Y")
       {
         FS_DelaySteps_Y = cmd.toInt();
-        Serial.println("Write EEPROM FS_DelaySteps_Y: " + WR_EEPROM(EP_FS_DelaySteps_Y, cmd));
+        Serial.println("Update EEPROM FS_DelaySteps_Y: " + WR_EEPROM(EP_FS_DelaySteps_Y, cmd));
       }
       else if (ParaName == "FS_Avg_Y")
       {
         FS_Avg_Y = cmd.toInt();
-        Serial.println("Write EEPROM FS_Avg_Y: " + WR_EEPROM(EP_FS_Avg_Y, cmd));
+        Serial.println("Update EEPROM FS_Avg_Y: " + WR_EEPROM(EP_FS_Avg_Y, cmd));
       }
 
       else if (ParaName == "FS_Count_Z")
       {
         FS_Count_Z = cmd.toInt();
-        Serial.println("Write EEPROM FS_Count_Z: " + WR_EEPROM(EP_FS_Count_Z, cmd));
+        Serial.println("Update EEPROM FS_Count_Z: " + WR_EEPROM(EP_FS_Count_Z, cmd));
       }
       else if (ParaName == "FS_Steps_Z")
       {
         FS_Steps_Z = cmd.toInt();
-        Serial.println("Write EEPROM FS_Steps_Z: " + WR_EEPROM(EP_FS_Steps_Z, cmd));
+        Serial.println("Update EEPROM FS_Steps_Z: " + WR_EEPROM(EP_FS_Steps_Z, cmd));
       }
       else if (ParaName == "FS_Stable_Z")
       {
         FS_Stable_Z = cmd.toInt();
-        Serial.println("Write EEPROM FS_Stable_Z: " + WR_EEPROM(EP_FS_Stable_Z, cmd));
+        Serial.println("Update EEPROM FS_Stable_Z: " + WR_EEPROM(EP_FS_Stable_Z, cmd));
       }
       else if (ParaName == "FS_DelaySteps_Z")
       {
         FS_DelaySteps_Z = cmd.toInt();
-        Serial.println("Write EEPROM FS_DelaySteps_Z: " + WR_EEPROM(EP_FS_DelaySteps_Z, cmd));
+        Serial.println("Update EEPROM FS_DelaySteps_Z: " + WR_EEPROM(EP_FS_DelaySteps_Z, cmd));
       }
       else if (ParaName == "FS_Avg_Z")
       {
         FS_Avg_Z = cmd.toInt();
-        Serial.println("Write EEPROM FS_Avg_Z: " + WR_EEPROM(EP_FS_Avg_Z, cmd));
+        Serial.println("Update EEPROM FS_Avg_Z: " + WR_EEPROM(EP_FS_Avg_Z, cmd));
       }
       else if (ParaName == "FS_Trips_X")
       {
         FS_Trips_X = cmd.toInt();
-        Serial.println("Write EEPROM FS_Trips_X: " + WR_EEPROM(EP_FS_Trips_X, cmd));
+        Serial.println("Update EEPROM FS_Trips_X: " + WR_EEPROM(EP_FS_Trips_X, cmd));
       }
       else if (ParaName == "FS_Trips_Y")
       {
         FS_Trips_Y = cmd.toInt();
-        Serial.println("Write EEPROM FS_Trips_Y: " + WR_EEPROM(EP_FS_Trips_Y, cmd));
+        Serial.println("Update EEPROM FS_Trips_Y: " + WR_EEPROM(EP_FS_Trips_Y, cmd));
       }
       else if (ParaName == "FS_Trips_Z")
       {
         FS_Trips_Z = cmd.toInt();
-        Serial.println("Write EEPROM FS_Trips_Z: " + WR_EEPROM(EP_FS_Trips_Z, cmd));
+        Serial.println("Update EEPROM FS_Trips_Z: " + WR_EEPROM(EP_FS_Trips_Z, cmd));
       }
     }
 
@@ -5323,6 +5396,55 @@ int Function_Classification(String cmd, int ButtonSelected)
       Serial.println("Set Manual Control Motor Speed:" + cmd);
     }
 
+    //Set Manual Control Motor Speed
+    else if (Contains(cmd, "SPD"))
+    {
+      cmd.remove(0, 3);  
+
+      if (Contains(cmd, "X"))
+      {
+        cmd.remove(0, 3);  //Include empty char deleted
+        delayBetweenStep_X = cmd.toInt();
+        WR_EEPROM(48, cmd);
+      }
+      else if (Contains(cmd, "Y"))
+      {
+        cmd.remove(0, 3);  //Include empty char deleted
+        delayBetweenStep_Y = cmd.toInt();
+        WR_EEPROM(56, cmd);
+
+      }
+      else if (Contains(cmd, "Z"))
+      {
+        cmd.remove(0, 3);  //Include empty char deleted
+        delayBetweenStep_Z = cmd.toInt();
+        WR_EEPROM(64, cmd);
+      }
+      else if (Contains(cmd, "?"))
+      {
+        Serial.println("Motor Speed (x, y, z): (" 
+          + ReadInfoEEPROM(48, 8)
+          + ","
+          + ReadInfoEEPROM(56, 8)
+          + ","
+          + ReadInfoEEPROM(64, 8)
+          + ")"
+          );
+      }
+      else
+      {
+        int dbt = cmd.toInt();
+        delayBetweenStep_Y = dbt;
+        delayBetweenStep_Z = dbt;
+        delayBetweenStep_Z = dbt;
+        WR_EEPROM(48, cmd);
+        WR_EEPROM(56, cmd);
+        WR_EEPROM(64, cmd);
+      }
+
+      Serial.println("Set Motor Speed:" + cmd);
+    }
+
     //Set PD average points
     else if (Contains(cmd, "Set_PD_average_Points:"))
     {
@@ -5332,10 +5454,17 @@ int Function_Classification(String cmd, int ButtonSelected)
       Serial.println("Set Get_PD_Points: " + WR_EEPROM(152, cmd));
     }
 
+     //Get Version
+    // else if (cmd == "Ver?")
+    // {
+    //   Serial.println(ReadInfoEEPROM(8, 8));
+    // }
+
     //Set Board ID
     else if (Contains(cmd, "ID#"))
     {
       cmd.remove(0, 3);
+      ID = cmd;
       Serial.println("Set Board ID: " + WR_EEPROM(8, cmd));
     }
 
@@ -5349,6 +5478,7 @@ int Function_Classification(String cmd, int ButtonSelected)
     else if (Contains(cmd, "ID_Station#"))
     {
       cmd.remove(0, 11);
+      Station_ID = cmd;
       Serial.println("Set Station ID: " + WR_EEPROM(16, cmd));
     }
 
@@ -5482,7 +5612,14 @@ int Function_Excecutation(String cmd, int cmd_No)
       case 2: /* Fine Scan */
         if (!btn_isTrigger)
         {
-          StopValue = 0; //0 dB
+          PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+
+          if(PD_Now >= -1.6)
+          {
+            StopValue = PD_Now + 0.2;
+          }
+          else
+            StopValue = 0; //0 dB
 
           bool K_OK = true;
           bool initial_wifi_isConnected = isWiFiConnected;
@@ -5544,7 +5681,7 @@ int Function_Excecutation(String cmd, int cmd_No)
           ButtonSelected = -1;
 
           double IL_stable_count = 0;
-          double Acceptable_Delta_IL = 10; //12
+          double Acceptable_Delta_IL = 0.3; //12,10, 2
           unsigned long lastUpdateQT = 0;
           Q_Time = 0;
 
@@ -5578,8 +5715,6 @@ int Function_Excecutation(String cmd, int cmd_No)
 
             PD_Now = Cal_PD_Input_IL(Get_PD_Points);
             Q_Time = ((millis() - time_curing_0) / 1000);
-            // MSGOutput("Curing Time:" + String(Q_Time) + " s");
-            // MSGOutput("PD_Power:" + String(PD_Now)); //dB
             
             if(isStopAlign)
             { 
@@ -5680,10 +5815,15 @@ int Function_Excecutation(String cmd, int cmd_No)
                 }
               }
 
-              if (Q_Time > 540)
+              if (Q_Time > 420)
               {
-                if(Acceptable_Delta_IL != 0.2 ){
-                  Acceptable_Delta_IL = 0.2; // Target IL changed 0.25
+                if(Acceptable_Delta_IL > 0.2 )
+                {
+                  if(StopValue > -1.3)
+                    Acceptable_Delta_IL = 0.2; // Target IL changed 0.25
+                  else
+                    Acceptable_Delta_IL = 0.12; // Target IL changed 0.25
+
                   MSGOutput("Update Scan Condition: " + String(Acceptable_Delta_IL));     
                 }
               }
@@ -5692,7 +5832,6 @@ int Function_Excecutation(String cmd, int cmd_No)
             PD_Now = Cal_PD_Input_IL(Get_PD_Points * 3);  //Increase IL stability
 
             int keyValue = KeyValueConverter();
-            Serial.println("KeyValue:" + String(keyValue));
 
             if (PD_Now >= (AutoCuring_Best_IL - (Acceptable_Delta_IL)) && keyValue != 8)
             {
@@ -5703,9 +5842,6 @@ int Function_Excecutation(String cmd, int cmd_No)
             {
               if(!isStopAlign || keyValue == 8)
               {
-                // time_curing_3 = millis();
-                // Q_Time = (time_curing_3 - time_curing_0) / 1000;                
-
                 //Q Scan
                 if (true && Q_Time <= 900 && !isStopAlign || keyValue == 8)
                 {
@@ -5818,15 +5954,15 @@ int Function_Excecutation(String cmd, int cmd_No)
 
                 PD_Now = Cal_PD_Input_IL(Get_PD_Points);
 
-                if (abs(PD_Before - PD_Now) < 0.3 && (time_curing_3 - time_curing_0) > 750000)
+                if (abs(PD_Before - PD_Now) < 0.3 && Q_Time > 750)
                 {
                   IL_stable_count++;
 
-                  if (IL_stable_count > 4 && !isStopAlign)
+                  if (IL_stable_count > 4 && !isStopAlign && Q_Time > 750)
                   {
                     MSGOutput("IL stable to break");
+                    MSGOutput("Stable Time : " + String(Q_Time));
                     isStopAlign = true;
-                    // break;
                   }
                 }
 
