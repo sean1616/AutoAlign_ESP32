@@ -2715,6 +2715,9 @@ void AutoAlign()
     for (int i = 0; i < 15; i++)
     {
       //Scan(Rough) : Feed Z Loop
+
+      
+
       if (true)
       {
         if (i > 0 && abs(PD_After - PD_Before) < 0.1) //1.2
@@ -2732,10 +2735,15 @@ void AutoAlign()
 
         stableDelay = 100;
         double PD_Z_before = 0;
+
+        CMDOutput("AS");      
+        CMDOutput(">>Z Feed,Trip_1");
+
         for (int r = 0; r < 5; r++)
         {
-          if (isStop)
-            return;
+          if (isStop) return;
+
+          CMDOutput("~:Z Feed,Trip_"+ String(r+1));
 
           PD_Z_before = Cal_PD_Input_IL(Get_PD_Points);
           MSGOutput("PD_Z_before:" + String(PD_Z_before));
@@ -2769,9 +2777,12 @@ void AutoAlign()
           }
 
           MSGOutput("Z_feed:" + String(motorStep));
-          DataOutput();
 
           PD_Now = Cal_PD_Input_IL(Get_PD_Points);
+
+          DataOutput();
+          DataOutput(2, PD_Now); //int xyz, double pdValue
+          DataSent_Server("PD Power:" + String(PD_Now));
 
           if (PD_Now > stopValue)
           {
@@ -2781,15 +2792,17 @@ void AutoAlign()
 
           if (PD_Now <= PD_Z_before || (PD_Z_before - PD_Now) > 30 || abs(PD_Z_before - PD_Now) <= 1.5)
           {
-            MSGOutput("Z_feed_break,Now:" + String(PD_Now) + ",Before:" + String(PD_Z_before) + ",Z_Pos_Now:" + String(Z_Pos_Now));
-            MSGOutput(" ");
+            MSGOutput("Z_feed_break,Now:" + String(PD_Now) + ",Before:" + String(PD_Z_before));
+            MSGOutput("Break");
             break;
           }
           else
           {
-            MSGOutput("Z_feed,Now:" + String(PD_Now) + ",Before:" + String(PD_Z_before) + ",Z_Pos_Now:" + String(Z_Pos_Now));
+            MSGOutput("Z_feed,Now:" + String(PD_Now) + ",Before:" + String(PD_Z_before));
           }
         }
+        
+        CMDOutput("%:");
       }
 
       Threshold = 120;
@@ -2797,7 +2810,7 @@ void AutoAlign()
       // delayBetweenStep = 8;
       stableDelay = 25; //default: 25
 
-      //Scan(Rough) : Spiral, if IL<-54
+      //, if IL<-54
       if (PD_Now < -54)
       {
         MSGOutput("Spiral:z_feed_region");
@@ -3136,6 +3149,20 @@ bool AutoAlign_Spiral(int M, double StopValue, int stableDelay)
 
   for (int n = 1; abs(n) < (M + 1); n++)
   {
+    String rsMsg = "";
+    if (Serial.available())
+    {
+      rsMsg = Serial.readString();
+      rsMsg.trim();
+      rsMsg.replace("\r", "");
+      rsMsg.replace("\n", "");
+
+      if(Contains(rsMsg, "cmd30"))
+      {
+        EmergencyStop();
+      }
+    }
+
     if (isStop)
       return true;
 
@@ -3671,7 +3698,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
   long Step_Value[4 * count + 1];
   double Gradient_IL_Step[4 * count + 1];
   int GradientCount = 0;
-  int GradientTarget = 0.007;
+  double GradientTarget = 0.007;
   unsigned long timer_1 = 0, timer_2 = 0;
   // delayBetweenStep = stableDelay;
   timer_1 = millis();
@@ -3685,21 +3712,21 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
     DIR_Pin = X_DIR_Pin;
     STP_Pin = X_STP_Pin;
     backlash = X_backlash;
-    GradientTarget = 0.007;
+    GradientTarget = 0.005;
     delay(5);
     break;
   case 1:
     DIR_Pin = Y_DIR_Pin;
     STP_Pin = Y_STP_Pin;
     backlash = Y_backlash;
-    GradientTarget = 0.007;
+    GradientTarget = 0.005;
     delay(5);
     break;
   case 2:
     DIR_Pin = Z_DIR_Pin;
     STP_Pin = Z_STP_Pin;
     backlash = Z_backlash;
-    GradientTarget = 0.003;
+    GradientTarget = 0.001;
     delay(5);
     break;
   }
@@ -3838,7 +3865,7 @@ bool Scan_AllRange_TwoWay(int XYZ, int count, int motorStep, int stableDelay,
         // MSGOutput("G: " + String(Gradient_IL_Step[i-1], 4));
         // MSGOutput("C: " + String(GradientCount));
 
-        if(PD_Value[i] > -1.35 && Gradient_IL_Step[i-1] <= GradientTarget && GradientCount > 3)
+        if(PD_Value[i] > -1.55 && Gradient_IL_Step[i-1] <= GradientTarget && GradientCount > 3)
         {
           MSGOutput("Gradient <= GradientTarget : " + String(Gradient_IL_Step[i-1], 4));
 
@@ -5460,6 +5487,13 @@ int Function_Classification(String cmd, int ButtonSelected)
     //   Serial.println(ReadInfoEEPROM(8, 8));
     // }
 
+    //Re-start esp32
+    else if (cmd == "ESP_RST")
+    {
+      Serial.println("ESP_Reset");
+      ESP.restart();
+    }
+
     //Set Board ID
     else if (Contains(cmd, "ID#"))
     {
@@ -5982,6 +6016,8 @@ int Function_Excecutation(String cmd, int cmd_No)
           MSGOutput("Reset Z backlash from EEPROM: " + ReadInfoEEPROM(40, 8)); //(start_position, data_length)
           Z_backlash = eepromString.toInt();
 
+          digitalWrite(Z_DIR_Pin, false);  //Make sure z motor direction is reverse
+
           is_AutoCuring = false;
 
           isLCD = true;
@@ -6202,6 +6238,7 @@ int Function_Excecutation(String cmd, int cmd_No)
 
       case 11:
         MSGOutput("Board ID: " + ReadInfoEEPROM(8, 8)); 
+        cmd_No = 0;
         break;
 
       case 12:
@@ -6676,6 +6713,7 @@ void MSGOutput(String msg)
   }  
 }
 
+/// @brief Output 3-axis position message to Serial Port only
 void DataOutput()
 {
   double IL = Cal_PD_Input_IL(Get_PD_Points);
